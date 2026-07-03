@@ -333,10 +333,10 @@ function App() {
     }
   };
 
-  const handleToggleHabit = async (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => {
+  const handleToggleHabit = async (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number, note?: string) => {
     if (!user) return;
     try {
-      await toggleHabitCompletion(user.uid, habit, dateStr, currentCompleted, timeSpent);
+      await toggleHabitCompletion(user.uid, habit, dateStr, currentCompleted, timeSpent, note);
     } catch (err) {
       console.error(err);
     }

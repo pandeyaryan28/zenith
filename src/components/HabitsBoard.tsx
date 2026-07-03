@@ -12,7 +12,8 @@ import {
   Calendar,
   CheckSquare,
   HelpCircle,
-  Clock
+  Clock,
+  BookOpen
 } from 'lucide-react';
 
 interface HabitsBoardProps {
@@ -22,7 +23,7 @@ interface HabitsBoardProps {
   onAddHabit: (habitData: Omit<Habit, 'id' | 'createdAt' | 'archived'>) => Promise<void>;
   onUpdateHabit: (habitId: string, habitData: Partial<Habit>) => Promise<void>;
   onDeleteHabit: (habit: Habit) => Promise<void>;
-  onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
+  onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number, note?: string) => Promise<void>;
 }
 
 const COLOR_PRESETS = [
@@ -42,6 +43,10 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedHabit, setSelectedHabit] = useState<Habit | null>(null);
+  
+  // Note Modal state (when completing a habit)
+  const [completingHabit, setCompletingHabit] = useState<Habit | null>(null);
+  const [completionNote, setCompletionNote] = useState('');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -50,9 +55,14 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   const [frequency, setFrequency] = useState<'daily' | 'custom'>('daily');
   const [daysOfWeek, setDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]); // Default weekdays Mon-Fri
   const [timeTarget, setTimeTarget] = useState<number>(30); // Default 30 min
+  const [category, setCategory] = useState<string>('routine');
+  const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [syncToCalendar, setSyncToCalendar] = useState(false);
   const [syncToTasks, setSyncToTasks] = useState(false);
   const [taskListId, setTaskListId] = useState('');
+
+  // Active Category Filter
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all');
 
   // Date helper utilities
   const getLocalDateStr = (d: Date) => {
@@ -68,9 +78,12 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   const activeHabitsToday = habits.filter(h => {
     if (h.archived) return false;
     if (h.frequency === 'custom' && h.daysOfWeek) {
-      return h.daysOfWeek.includes(todayDayOfWeek);
+      if (!h.daysOfWeek.includes(todayDayOfWeek)) return false;
     }
-    return true; // daily
+    if (activeCategoryFilter !== 'all' && h.category !== activeCategoryFilter) {
+      return false;
+    }
+    return true;
   });
 
   const completedHabitsToday = activeHabitsToday.filter(h => {
@@ -94,6 +107,8 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
       frequency: frequency === 'daily' ? 'daily' : 'custom',
       daysOfWeek: frequency === 'custom' ? daysOfWeek : undefined,
       timeTargetMinutes: timeTarget > 0 ? timeTarget : undefined,
+      category,
+      difficulty,
       syncToCalendar,
       syncToTasks,
       googleTaskListId: syncToTasks ? taskListId : undefined
@@ -106,6 +121,8 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     setFrequency('daily');
     setDaysOfWeek([1, 2, 3, 4, 5]);
     setTimeTarget(30);
+    setCategory('routine');
+    setDifficulty('medium');
     setSyncToCalendar(false);
     setSyncToTasks(false);
     setTaskListId('');
@@ -120,10 +137,27 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     }
   };
 
-  const toggleHabit = async (habit: Habit) => {
+  // Handle completion check click
+  const handleCheckClick = async (habit: Habit) => {
     const logs = habitLogs[habit.id] || {};
     const isCompleted = logs[todayStr]?.status === 'completed';
-    await onToggleHabit(habit, todayStr, isCompleted);
+    
+    if (isCompleted) {
+      // Uncheck immediately
+      await onToggleHabit(habit, todayStr, true);
+    } else {
+      // Open Note Modal for completion log
+      setCompletingHabit(habit);
+      setCompletionNote('');
+    }
+  };
+
+  const handleSaveCompletionNote = async (skip: boolean = false) => {
+    if (!completingHabit) return;
+    const noteText = skip ? '' : completionNote.trim();
+    await onToggleHabit(completingHabit, todayStr, false, completingHabit.timeTargetMinutes, noteText);
+    setCompletingHabit(null);
+    setCompletionNote('');
   };
 
   // Generate last 30 days for Heatmap
@@ -170,8 +204,25 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     return 'rgba(99, 102, 241, 0.85)'; // glowing indigo
   };
 
+  const getCategoryIcon = (cat?: string) => {
+    switch (cat) {
+      case 'mind': return '🧘';
+      case 'health': return '🏃';
+      case 'work': return '💼';
+      default: return '🔄';
+    }
+  };
+
+  const getDifficultyColor = (diff?: 'easy' | 'medium' | 'hard') => {
+    switch (diff) {
+      case 'easy': return 'var(--color-success)';
+      case 'hard': return 'var(--color-danger)';
+      default: return 'var(--color-warning)';
+    }
+  };
+
   // SVG Progress Ring calculations
-  const radius = 38;
+  const radius = 40;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (completionRateToday / 100) * circumference;
 
@@ -179,11 +230,11 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     <div className="glass-panel" style={{ display: 'grid', gridTemplateRows: 'auto 1fr', height: '100%', overflow: 'hidden' }}>
       
       {/* 1. Header widget with Progress ring */}
-      <div style={{ padding: '1.25rem', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Habits Tracker</h2>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>Consistency is key to mastery.</p>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Habits Tracker</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>Build long term discipline with categories & visual journals.</p>
           </div>
           <button 
             onClick={() => {
@@ -191,112 +242,168 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               setShowAddModal(true);
             }} 
             className="btn-primary" 
-            style={{ padding: '0.5rem 0.85rem', fontSize: '0.8rem', borderRadius: 'var(--radius-sm)' }}
+            style={{ padding: '0.6rem 1rem', borderRadius: 'var(--radius-sm)' }}
           >
-            <Plus size={14} /> Add Habit
+            <Plus size={16} /> Add Habit
           </button>
         </div>
 
-        {/* Status ring card */}
-        <div className="glass-card" style={{ display: 'flex', alignItems: 'center', padding: '1rem', gap: '1.25rem' }}>
-          <div style={{ position: 'relative', width: '90px', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg style={{ transform: 'rotate(-90deg)', width: '90px', height: '90px' }}>
-              <circle
-                cx="45"
-                cy="45"
-                r={radius}
-                stroke="rgba(255,255,255,0.03)"
-                strokeWidth="7"
-                fill="transparent"
-              />
-              <circle
-                cx="45"
-                cy="45"
-                r={radius}
-                stroke="var(--color-primary)"
-                strokeWidth="7"
-                fill="transparent"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                style={{ transition: 'stroke-dashoffset var(--transition-normal)' }}
-              />
-            </svg>
-            <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'var(--font-display)' }}>{completionRateToday}%</span>
+        {/* Progress dashboard summary */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+          
+          <div className="glass-card" style={{ display: 'flex', alignItems: 'center', padding: '1rem', gap: '1.25rem' }}>
+            <div style={{ position: 'relative', width: '85px', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg style={{ transform: 'rotate(-90deg)', width: '85px', height: '85px' }}>
+                <circle
+                  cx="42.5"
+                  cy="42.5"
+                  r={radius}
+                  stroke="rgba(255,255,255,0.03)"
+                  strokeWidth="6"
+                  fill="transparent"
+                />
+                <circle
+                  cx="42.5"
+                  cy="42.5"
+                  r={radius}
+                  stroke="var(--color-primary)"
+                  strokeWidth="6"
+                  fill="transparent"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  strokeLinecap="round"
+                  style={{ transition: 'stroke-dashoffset var(--transition-normal)' }}
+                />
+              </svg>
+              <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>{completionRateToday}%</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <span style={{ fontSize: '0.95rem', fontWeight: 700 }}>Daily Checklist</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                {completedHabitsToday.length} of {activeHabitsToday.length} habits completed today.
+              </span>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>Daily Progress</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              {completedHabitsToday.length} of {activeHabitsToday.length} habits completed today.
-            </span>
+
+          {/* Consistency Heatmap Card */}
+          <div className="glass-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', justifyContent: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>CONSISTENCY (LAST 30 DAYS)</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(15, 1fr)', gap: '0.25rem' }}>
+              {getLast30Days().map((date, idx) => (
+                <div 
+                  key={idx}
+                  title={`${date.toLocaleDateString()}`}
+                  style={{
+                    aspectRatio: '1',
+                    borderRadius: '2px',
+                    background: getHeatmapColor(date),
+                    boxShadow: getHeatmapColor(date).includes('0.85') ? '0 0 6px rgba(99, 102, 241, 0.3)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
           </div>
+
+        </div>
+
+        {/* Category Filters row */}
+        <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.2rem' }} className="custom-scroll">
+          {[
+            { id: 'all', label: '📁 All Category' },
+            { id: 'routine', label: '🔄 Routine' },
+            { id: 'mind', label: '🧘 Mind' },
+            { id: 'health', label: '🏃 Health' },
+            { id: 'work', label: '💼 Work' }
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveCategoryFilter(item.id)}
+              className="btn"
+              style={{
+                padding: '0.35rem 0.75rem',
+                fontSize: '0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                whiteSpace: 'nowrap',
+                background: activeCategoryFilter === item.id ? 'var(--color-primary-glow)' : 'rgba(255, 255, 255, 0.02)',
+                border: activeCategoryFilter === item.id ? '1px solid var(--border-active)' : '1px solid var(--border-color)',
+                color: activeCategoryFilter === item.id ? 'var(--text-primary)' : 'var(--text-secondary)'
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* 2. Habit checklist + heatmap */}
-      <div className="custom-scroll" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
+      {/* 2. Habits Grid List */}
+      <div className="custom-scroll" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', overflowY: 'auto' }}>
         
-        {/* Checklist */}
-        <div>
-          <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '0.75rem' }}>TODAY'S HABITS</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
           {activeHabitsToday.length === 0 ? (
-            <div style={{ padding: '2rem 1rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.1)' }}>
-              <Sparkles size={24} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem' }} />
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>No habits scheduled for today.</p>
+            <div style={{ gridColumn: '1 / -1', padding: '3rem 1rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.1)' }}>
+              <Sparkles size={32} style={{ color: 'var(--text-muted)', marginBottom: '0.75rem' }} />
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 600 }}>No habits fit this category today.</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Change the category filters above or create a new habit.</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              {activeHabitsToday.map(habit => {
-                const logs = habitLogs[habit.id] || {};
-                const isCompleted = logs[todayStr]?.status === 'completed';
-                const streakData = calculateStreak(logs, habit.frequency, habit.daysOfWeek);
-                
-                // Color mapping
-                let habitGrad = COLOR_PRESETS[0].value;
-                const match = COLOR_PRESETS.find(p => p.class === habit.color);
-                if (match) habitGrad = match.value;
+            activeHabitsToday.map(habit => {
+              const logs = habitLogs[habit.id] || {};
+              const isCompleted = logs[todayStr]?.status === 'completed';
+              const streakData = calculateStreak(logs, habit.frequency, habit.daysOfWeek);
+              
+              let habitGrad = COLOR_PRESETS[0].value;
+              const match = COLOR_PRESETS.find(p => p.class === habit.color);
+              if (match) habitGrad = match.value;
 
-                return (
-                  <div 
-                    key={habit.id}
-                    className={`glass-card ${isCompleted ? 'animate-check' : ''}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '0.85rem 1rem',
-                      cursor: 'pointer',
-                      borderLeft: `4px solid transparent`,
-                      borderImage: `${habitGrad} 1`,
-                      background: isCompleted ? 'rgba(255,255,255,0.01)' : 'var(--bg-card)'
-                    }}
-                    onClick={() => toggleHabit(habit)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', minWidth: 0 }}>
-                      {/* Interactive checkbox indicator */}
-                      <div 
-                        style={{
-                          width: '22px',
-                          height: '22px',
-                          borderRadius: '50%',
-                          border: isCompleted ? 'none' : '1px solid var(--border-color)',
-                          background: isCompleted ? habitGrad : 'transparent',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          boxShadow: isCompleted ? '0 0 10px rgba(99, 102, 241, 0.3)' : 'none',
-                          transition: 'all var(--transition-fast)'
-                        }}
-                      >
-                        {isCompleted && <Check size={14} style={{ color: '#fff' }} />}
-                      </div>
+              return (
+                <div 
+                  key={habit.id}
+                  className={`glass-card ${isCompleted ? 'animate-check' : ''}`}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '1.25rem',
+                    borderLeft: `5px solid transparent`,
+                    borderImage: `${habitGrad} 1`,
+                    background: isCompleted ? 'rgba(255,255,255,0.01)' : 'var(--bg-card)',
+                    position: 'relative',
+                    gap: '1rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+                    
+                    {/* Checkbox circle */}
+                    <div 
+                      onClick={() => handleCheckClick(habit)}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        border: isCompleted ? 'none' : '2px solid var(--border-color)',
+                        background: isCompleted ? habitGrad : 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: isCompleted ? '0 0 10px rgba(99, 102, 241, 0.3)' : 'none',
+                        transition: 'all var(--transition-fast)',
+                        cursor: 'pointer',
+                        flexShrink: 0
+                      }}
+                    >
+                      {isCompleted && <Check size={14} style={{ color: '#fff' }} />}
+                    </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                        <span style={{ fontSize: '1rem', fontStyle: 'normal' }}>
+                          {getCategoryIcon(habit.category)}
+                        </span>
                         <span style={{ 
-                          fontSize: '0.9rem', 
-                          fontWeight: 500, 
+                          fontSize: '1rem', 
+                          fontWeight: 700, 
                           textDecoration: isCompleted ? 'line-through' : 'none',
                           color: isCompleted ? 'var(--text-muted)' : 'var(--text-primary)',
                           transition: 'all var(--transition-fast)',
@@ -306,59 +413,73 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                         }}>
                           {habit.title}
                         </span>
-                        {habit.description && !isCompleted && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {habit.description}
-                          </span>
-                        )}
                       </div>
+                      {habit.description && (
+                        <p style={{ 
+                          fontSize: '0.75rem', 
+                          color: 'var(--text-secondary)',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: '1.25'
+                        }}>
+                          {habit.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card bottom details */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.02)', paddingTop: '0.75rem' }}>
+                    
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {/* Difficulty Badge */}
+                      <span style={{ 
+                        fontSize: '0.65rem', 
+                        padding: '0.15rem 0.4rem', 
+                        borderRadius: '4px', 
+                        background: 'rgba(0,0,0,0.2)', 
+                        color: getDifficultyColor(habit.difficulty),
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        border: `1px solid ${getDifficultyColor(habit.difficulty)}20`
+                      }}>
+                        {habit.difficulty || 'medium'}
+                      </span>
+
+                      {/* Time Target */}
+                      {habit.timeTargetMinutes && (
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <Clock size={11} /> {habit.timeTargetMinutes}m
+                        </span>
+                      )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      {/* Streak badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {/* Streak */}
                       {streakData.currentStreak > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', padding: '0.2rem 0.5rem', borderRadius: 'var(--radius-full)', background: 'rgba(249, 115, 22, 0.1)', border: '1px solid rgba(249, 115, 22, 0.2)', color: '#f97316' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.2rem 0.5rem', borderRadius: 'var(--radius-full)', background: 'rgba(249, 115, 22, 0.08)', border: '1px solid rgba(249, 115, 22, 0.15)', color: '#f97316' }}>
                           <Flame size={12} fill="#f97316" />
-                          <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>{streakData.currentStreak}</span>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>{streakData.currentStreak}</span>
                         </div>
                       )}
                       
-                      {/* Detail triggers */}
+                      {/* Help/Detail Trigger */}
                       <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedHabit(habit);
-                        }} 
-                        style={{ padding: '0.25rem', color: 'var(--text-muted)' }}
+                        onClick={() => setSelectedHabit(habit)} 
+                        style={{ padding: '0.3rem', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        title="View journal history"
                       >
-                        <HelpCircle size={14} />
+                        <HelpCircle size={15} />
                       </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
 
-        {/* Heatmap grid */}
-        <div>
-          <h3 style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '0.75rem' }}>CONSISTENCY GRID (LAST 30 DAYS)</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: '0.35rem', background: 'rgba(0,0,0,0.15)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            {getLast30Days().map((date, idx) => (
-              <div 
-                key={idx}
-                title={`${date.toLocaleDateString()} - completion ratio`}
-                style={{
-                  aspectRatio: '1',
-                  borderRadius: '3px',
-                  background: getHeatmapColor(date),
-                  boxShadow: getHeatmapColor(date).includes('0.85') ? '0 0 8px rgba(99, 102, 241, 0.35)' : 'none',
-                  transition: 'background var(--transition-fast)'
-                }}
-              />
-            ))}
-          </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
       </div>
@@ -385,26 +506,28 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
             className="glass-panel" 
             style={{
               width: '90%',
-              maxWidth: '460px',
+              maxWidth: '500px',
               padding: '1.75rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '1.25rem',
-              boxShadow: 'var(--shadow-lg)'
+              boxShadow: 'var(--shadow-lg)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Create New Habit</h3>
-              <button type="button" onClick={() => setShowAddModal(false)} style={{ color: 'var(--text-muted)' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Create New Habit</h3>
+              <button type="button" onClick={() => setShowAddModal(false)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>HABIT NAME</label>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>HABIT TITLE</label>
               <input 
                 type="text" 
-                placeholder="e.g., Daily Gym, Learn Coding, Meditate"
+                placeholder="e.g., Learn French, Morning Yoga, Drink Water"
                 value={title} 
                 onChange={(e) => setTitle(e.target.value)} 
                 required 
@@ -413,19 +536,44 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DESCRIPTION (OPTIONAL)</label>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>MOTIVATION OR DETAILS (OPTIONAL)</label>
               <input 
                 type="text" 
-                placeholder="What motivates you?"
+                placeholder="Keep it brief and encouraging."
                 value={description} 
                 onChange={(e) => setDescription(e.target.value)} 
                 maxLength={80}
               />
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              
+              {/* Category Dropdown */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>CATEGORY</label>
+                <select value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option value="routine">🔄 Routine</option>
+                  <option value="mind">🧘 Mind / Meditation</option>
+                  <option value="health">🏃 Health / Fitness</option>
+                  <option value="work">💼 Work / Learning</option>
+                </select>
+              </div>
+
+              {/* Difficulty Selection */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>DIFFICULTY WEIGHT</label>
+                <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as any)}>
+                  <option value="easy">🟢 Easy</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="hard">🔴 Hard</option>
+                </select>
+              </div>
+
+            </div>
+
             {/* Gradient Theme selector */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>COLOR DESIGN</label>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>CARD COLOR GRADES</label>
               <div style={{ display: 'flex', gap: '0.75rem' }}>
                 {COLOR_PRESETS.map((preset) => (
                   <button
@@ -450,7 +598,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
 
             {/* Frequency Selection */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>FREQUENCY</label>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>SCHEDULE</label>
               <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(0,0,0,0.2)', padding: '0.25rem', borderRadius: 'var(--radius-sm)' }}>
                 <button
                   type="button"
@@ -461,7 +609,9 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                     fontSize: '0.8rem',
                     background: frequency === 'daily' ? 'rgba(255,255,255,0.06)' : 'transparent',
                     border: 'none',
-                    borderRadius: '6px'
+                    borderRadius: '6px',
+                    color: frequency === 'daily' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer'
                   }}
                 >
                   Daily
@@ -475,7 +625,9 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                     fontSize: '0.8rem',
                     background: frequency === 'custom' ? 'rgba(255,255,255,0.06)' : 'transparent',
                     border: 'none',
-                    borderRadius: '6px'
+                    borderRadius: '6px',
+                    color: frequency === 'custom' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    cursor: 'pointer'
                   }}
                 >
                   Specific Days
@@ -515,7 +667,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <Clock size={14} style={{ color: 'var(--text-secondary)' }} />
                 <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                  TIME TARGET: {timeTarget} MINS
+                  DAILY DURATION TARGET: {timeTarget} MINS
                 </label>
               </div>
               <input 
@@ -531,7 +683,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
 
             {/* Integrations */}
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>INTEGRATIONS</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>GOOGLE INTEGRATIONS</span>
               
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem' }}>
                 <input 
@@ -541,7 +693,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                   style={{ width: '16px', height: '16px', margin: 0 }}
                 />
                 <Calendar size={14} style={{ color: 'var(--color-secondary)' }} />
-                <span>Auto-Schedule Calendar Events</span>
+                <span>Auto-Schedule Calendar slots</span>
               </label>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -553,7 +705,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                     style={{ width: '16px', height: '16px', margin: 0 }}
                   />
                   <CheckSquare size={14} style={{ color: 'var(--color-primary)' }} />
-                  <span>Generate Google Tasks Checklist</span>
+                  <span>Generate Google Tasks checkbox</span>
                 </label>
                 
                 {syncToTasks && taskLists.length > 0 && (
@@ -578,7 +730,82 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
       )}
 
       {/* =========================================================================
-         Habit Details Modal
+         Completion Journal Note Modal
+         ========================================================================= */}
+      {completingHabit && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 100,
+          background: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'var(--glass-blur)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <div 
+            className="glass-panel" 
+            style={{
+              width: '90%',
+              maxWidth: '380px',
+              padding: '1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              boxShadow: 'var(--shadow-lg)'
+            }}
+          >
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <BookOpen size={18} style={{ color: 'var(--color-primary)' }} />
+              Habit Journal Note
+            </h3>
+            
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Would you like to write a quick reflection or journal note for completing <strong>{completingHabit.title}</strong>?
+            </p>
+
+            <textarea 
+              rows={3}
+              placeholder="e.g., Felt energized today! Run completed in 20 mins."
+              value={completionNote}
+              onChange={(e) => setCompletionNote(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                fontSize: '0.85rem',
+                background: 'rgba(0, 0, 0, 0.25)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-primary)',
+                resize: 'none'
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button 
+                onClick={() => handleSaveCompletionNote(true)} 
+                className="btn-secondary" 
+                style={{ flex: 1, padding: '0.6rem' }}
+              >
+                Skip Note
+              </button>
+              <button 
+                onClick={() => handleSaveCompletionNote(false)} 
+                className="btn-primary" 
+                style={{ flex: 1, padding: '0.6rem' }}
+              >
+                Log Completion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+         Habit Details & Journal History Modal
          ========================================================================= */}
       {selectedHabit && (
         <div style={{
@@ -597,21 +824,25 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
           <div 
             className="glass-panel" 
             style={{
-              width: '90%',
-              maxWidth: '400px',
-              padding: '1.5rem',
+              width: '95%',
+              maxWidth: '440px',
+              padding: '1.75rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '1.25rem',
-              boxShadow: 'var(--shadow-lg)'
+              boxShadow: 'var(--shadow-lg)',
+              maxHeight: '85vh',
+              overflowY: 'auto'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: COLOR_PRESETS.find(p => p.class === selectedHabit.color)?.value || COLOR_PRESETS[0].value }} />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{selectedHabit.title}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                <span style={{ fontSize: '1.2rem' }}>{getCategoryIcon(selectedHabit.category)}</span>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {selectedHabit.title}
+                </h3>
               </div>
-              <button onClick={() => setSelectedHabit(null)} style={{ color: 'var(--text-muted)' }}>
+              <button onClick={() => setSelectedHabit(null)} style={{ color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
                 <X size={18} />
               </button>
             </div>
@@ -622,27 +853,84 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               </p>
             )}
 
+            {/* Streaks row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
               <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0.75rem', gap: '0.2rem' }}>
                 <Flame size={18} style={{ color: 'var(--color-warning)' }} />
-                <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
                   {calculateStreak(habitLogs[selectedHabit.id] || {}, selectedHabit.frequency, selectedHabit.daysOfWeek).currentStreak}
                 </span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Current Streak</span>
               </div>
               <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0.75rem', gap: '0.2rem' }}>
                 <Sparkles size={18} style={{ color: 'var(--color-secondary)' }} />
-                <span style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800 }}>
                   {calculateStreak(habitLogs[selectedHabit.id] || {}, selectedHabit.frequency, selectedHabit.daysOfWeek).longestStreak}
                 </span>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Longest Streak</span>
               </div>
             </div>
 
+            {/* Past Journal Entries / Log Notes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>JOURNAL NOTES HISTORY</span>
+              <div style={{ 
+                maxHeight: '180px', 
+                overflowY: 'auto', 
+                background: 'rgba(0,0,0,0.2)', 
+                borderRadius: 'var(--radius-sm)', 
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                padding: '0.75rem'
+              }} className="custom-scroll">
+                {(() => {
+                  const logs = habitLogs[selectedHabit.id] || {};
+                  const entries = Object.keys(logs)
+                    .filter(dateStr => logs[dateStr].status === 'completed')
+                    .sort((a, b) => b.localeCompare(a)); // Sort newest first
+
+                  if (entries.length === 0) {
+                    return (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', display: 'block', padding: '1rem' }}>
+                        No completion entries logged yet.
+                      </span>
+                    );
+                  }
+
+                  return entries.map(dateStr => {
+                    const log = logs[dateStr];
+                    return (
+                      <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.4rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                          <span>{dateStr}</span>
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {log.completedAt ? new Date(log.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          </span>
+                        </div>
+                        {log.note ? (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.15rem', fontStyle: 'italic' }}>
+                            "{log.note}"
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                            Completed (no journal note logged)
+                          </span>
+                        )}
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>CREATED AT</span>
-                <span style={{ fontSize: '0.75rem' }}>{new Date(selectedHabit.createdAt).toLocaleDateString()}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>DIFFICULTY</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: getDifficultyColor(selectedHabit.difficulty), textTransform: 'capitalize' }}>
+                  {selectedHabit.difficulty || 'medium'}
+                </span>
               </div>
               
               <button 
@@ -653,9 +941,9 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                   }
                 }}
                 className="btn"
-                style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}
+                style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '0.4rem 0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', cursor: 'pointer' }}
               >
-                <Trash2 size={14} /> Delete
+                <Trash2 size={14} /> Delete Habit
               </button>
             </div>
           </div>

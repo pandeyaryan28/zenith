@@ -1,31 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { LocalTask, LocalEvent } from '../services/syncService';
 import type { GoogleTaskList } from '../services/googleApi';
 import { CalendarView } from './CalendarView';
 import { TaskBoard } from './TaskBoard';
-import { SyncStatus } from './SyncStatus';
 import { 
   LogOut, 
   User as UserIcon, 
-  CheckSquare, 
   Calendar as CalendarIcon,
   Flame,
   CheckCircle2,
   Timer,
-  Sun,
-  Moon,
-  Sparkles,
-  Layers,
-  Square,
-  Terminal
+  Sliders,
+  TrendingUp,
+  LayoutDashboard
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
 import { calculateStreak } from '../services/habitService';
-import { useState } from 'react';
 import type { PomodoroSession } from '../services/pomodoroService';
 import { PomodoroBoard } from './PomodoroBoard';
+import { DashboardOverview } from './DashboardOverview';
+import { AnalyticsPage } from './AnalyticsPage';
+import { SettingsPage } from './SettingsPage';
 
 interface DashboardProps {
   user: User;
@@ -50,7 +47,7 @@ interface DashboardProps {
   onAddHabit: (habitData: Omit<Habit, 'id' | 'createdAt' | 'archived'>) => Promise<void>;
   onUpdateHabit: (habitId: string, habitData: Partial<Habit>) => Promise<void>;
   onDeleteHabit: (habit: Habit) => Promise<void>;
-  onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
+  onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number, note?: string) => Promise<void>;
   pomodoroSessions: PomodoroSession[];
   onSavePomodoroSession: (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => Promise<void>;
   theme: 'light' | 'dark';
@@ -90,11 +87,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   styleMode,
   setStyleMode
 }) => {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'habits' | 'pomodoro'>('tasks');
-  const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
-  const totalEventsCount = events.filter(e => !e.localDeleted).length;
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'habits' | 'pomodoro' | 'analytics' | 'settings'>('dashboard');
 
-  // Habits statistics
+  const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
+
+  // Habits metrics
   const getLocalDateStr = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -123,13 +120,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
     ? Math.max(...streakMetrics.map(m => m.currentStreak)) 
     : 0;
 
-  // Pomodoro statistics
+  // Pomodoro metrics
   const completedPomosToday = pomodoroSessions.filter(s => {
     if (!s.completed || s.type !== 'work') return false;
     const localSessionDateStr = getLocalDateStr(new Date(s.startTime));
     return localSessionDateStr === todayLocalDateStr;
   });
   const focusMinutesToday = completedPomosToday.reduce((sum, s) => sum + s.durationMinutes, 0);
+
+  const navItems = [
+    { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, color: 'var(--color-primary)' },
+    { id: 'calendar', label: 'Schedule & Tasks', icon: CalendarIcon, color: 'var(--color-secondary)' },
+    { id: 'habits', label: 'Habits Board', icon: CheckCircle2, color: 'var(--color-warning)' },
+    { id: 'pomodoro', label: 'Focus Station', icon: Timer, color: 'var(--color-danger)' },
+    { id: 'analytics', label: 'Visual Analytics', icon: TrendingUp, color: 'var(--color-success)' },
+    { id: 'settings', label: 'Settings', icon: Sliders, color: 'var(--text-secondary)' }
+  ] as const;
 
   return (
     <div className="page-container" style={{ minHeight: '100vh', overflow: 'hidden' }}>
@@ -144,7 +150,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
            Sidebar Navigation Panel
            ========================================================================= */}
         <aside className="glass-panel" style={{
-          padding: '1.75rem',
+          padding: '1.5rem',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -155,181 +161,96 @@ export const Dashboard: React.FC<DashboardProps> = ({
           borderBottom: 'none',
           zIndex: 2
         }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
             
             {/* Logo Brand */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
               <div style={{ display: 'inline-flex', padding: '0.5rem', borderRadius: '0.75rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
                 <Flame size={20} className="text-gradient" />
               </div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.03em' }}>
+              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
                 Zenith
               </h1>
             </div>
 
-            {/* Sync Status Widget */}
-            <div style={{ padding: '1rem', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>SYSTEM SYNC</div>
-              <SyncStatus
-                isSyncing={isSyncing}
-                lastSynced={lastSynced}
-                error={syncError}
-                onSyncTrigger={onSyncTrigger}
-              />
-            </div>
-
-            {/* Quick Stats Panel */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>WORKSPACE STATS</div>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
-                <CheckSquare size={16} style={{ color: 'var(--color-primary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{activeTasksCount}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tasks pending</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
-                <CalendarIcon size={16} style={{ color: 'var(--color-secondary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{totalEventsCount}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Events scheduled</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
-                <Flame size={16} style={{ color: 'var(--color-warning)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{maxStreak} days</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Best habit streak</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
-                <CheckCircle2 size={16} style={{ color: 'var(--color-success)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{completedHabitsTodayCount} / {activeHabitsToday.length}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Habits completed</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
-                <Timer size={16} style={{ color: 'var(--color-secondary)' }} />
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{focusMinutesToday} mins</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Focused today</span>
-                </div>
-              </div>
-          </div>
-
-          {/* Appearance Section */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '1rem', marginBottom: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>APPEARANCE</div>
-            
-            {/* Theme Selector */}
-            <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.15)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', gap: '0.25rem' }}>
-              <button
-                onClick={() => setTheme('light')}
-                title="Light Theme"
-                style={{
-                  flex: 1,
-                  padding: '0.4rem 0.75rem',
-                  fontSize: '0.75rem',
-                  borderRadius: '6px',
-                  background: theme === 'light' ? 'var(--color-primary-glow)' : 'transparent',
-                  border: theme === 'light' ? '1px solid var(--border-active)' : '1px solid transparent',
-                  color: theme === 'light' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.35rem'
-                }}
-              >
-                <Sun size={14} />
-                <span>Light</span>
-              </button>
-              <button
-                onClick={() => setTheme('dark')}
-                title="Dark Theme"
-                style={{
-                  flex: 1,
-                  padding: '0.4rem 0.75rem',
-                  fontSize: '0.75rem',
-                  borderRadius: '6px',
-                  background: theme === 'dark' ? 'var(--color-primary-glow)' : 'transparent',
-                  border: theme === 'dark' ? '1px solid var(--border-active)' : '1px solid transparent',
-                  color: theme === 'dark' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.35rem'
-                }}
-              >
-                <Moon size={14} />
-                <span>Dark</span>
-              </button>
-            </div>
-
-            {/* Style Selector Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              {[
-                { id: 'glassmorphism', label: 'Glass', icon: Sparkles },
-                { id: 'neumorphism', label: 'Neumorph', icon: Layers },
-                { id: 'minimalist', label: 'Minimal', icon: Square },
-                { id: 'retro', label: 'Terminal', icon: Terminal }
-              ].map((item) => {
+            {/* Main Navigation List */}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.5rem', paddingLeft: '0.5rem' }}>NAVIGATION</div>
+              {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = styleMode === item.id;
+                const isActive = activePage === item.id;
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setStyleMode(item.id as any)}
-                    title={`${item.label} Style`}
+                    onClick={() => setActivePage(item.id)}
                     style={{
-                      padding: '0.5rem',
-                      fontSize: '0.7rem',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isActive ? 'var(--color-primary-glow)' : 'rgba(0, 0, 0, 0.1)',
-                      border: isActive ? '1px solid var(--border-active)' : '1px solid var(--border-color)',
-                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.35rem'
+                      gap: '0.75rem',
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: isActive ? 'var(--color-primary-glow)' : 'transparent',
+                      border: 'none',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      fontWeight: isActive ? 600 : 500,
+                      fontSize: '0.85rem',
+                      width: '100%',
+                      transition: 'all var(--transition-fast)'
                     }}
+                    className="hover-scale"
                   >
-                    <Icon size={12} style={{ color: isActive ? 'var(--color-primary)' : 'inherit' }} />
+                    <Icon size={16} style={{ color: isActive ? item.color : 'inherit' }} />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
-            </div>
-          </div>
-        </div>
+            </nav>
 
-        {/* User Details & Sign Out */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Quick Metrics (Sidebar compact view) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>TODAY'S METRICS</div>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Pending Tasks</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{activeTasksCount}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Focus Duration</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>{focusMinutesToday}m</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Habits Streaks</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-warning)' }}>{maxStreak}d</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Habits Checked</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{completedHabitsTodayCount}/{activeHabitsToday.length}</span>
+              </div>
+            </div>
+
+          </div>
+
+          {/* User Details & Sign Out */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
               {user.photoURL ? (
                 <img 
                   src={user.photoURL} 
                   alt={user.displayName || 'User'} 
-                  style={{ width: '40px', height: '40px', borderRadius: '50%', border: '1px solid var(--border-color)' }}
+                  style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)' }}
                 />
               ) : (
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}>
-                  <UserIcon size={18} />
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}>
+                  <UserIcon size={14} />
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {user.displayName || 'Developer'}
                 </span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {user.email}
                 </span>
               </div>
@@ -338,121 +259,107 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <button 
               onClick={onSignOut}
               className="btn-secondary" 
-              style={{ width: '100%', justifyContent: 'center', padding: '0.625rem', borderRadius: 'var(--radius-sm)', gap: '0.5rem', color: 'var(--text-secondary)' }}
+              style={{ width: '100%', justifyContent: 'center', padding: '0.5rem', borderRadius: 'var(--radius-sm)', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}
             >
-              <LogOut size={16} />
+              <LogOut size={14} />
               <span>Sign Out</span>
             </button>
           </div>
         </aside>
 
         {/* =========================================================================
-           Main Workspace Board (Calendar + Tasks)
+           Main Workspace Board (Render based on activePage)
            ========================================================================= */}
         <main style={{
           padding: '1.5rem',
-          display: 'grid',
-          gridTemplateColumns: '7fr 4fr',
-          gap: '1.5rem',
           height: '100vh',
           maxHeight: '100vh',
           overflow: 'hidden',
           zIndex: 1
         }}>
-          {/* Calendar Side */}
-          <div style={{ height: '100%', overflow: 'hidden' }}>
-            <CalendarView
-              events={events}
-              onAddEvent={onAddEvent}
-              onDeleteEvent={onDeleteEvent}
-            />
-          </div>
-
-          {/* Tasks Side / Habits Side */}
-          <div style={{ height: '100%', overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto 1fr', gap: '1rem' }}>
-            
-            {/* View Mode Segmented Pill */}
-            <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.25)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-              <button 
-                onClick={() => setActiveTab('tasks')}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  fontSize: '0.85rem',
-                  borderRadius: '6px',
-                  background: activeTab === 'tasks' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  border: 'none',
-                  color: activeTab === 'tasks' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  boxShadow: activeTab === 'tasks' ? 'var(--shadow-sm)' : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Tasks
-              </button>
-              <button 
-                onClick={() => setActiveTab('habits')}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  fontSize: '0.85rem',
-                  borderRadius: '6px',
-                  background: activeTab === 'habits' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  border: 'none',
-                  color: activeTab === 'habits' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  boxShadow: activeTab === 'habits' ? 'var(--shadow-sm)' : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Habits
-              </button>
-              <button 
-                onClick={() => setActiveTab('pomodoro')}
-                style={{
-                  flex: 1,
-                  padding: '0.5rem',
-                  fontSize: '0.85rem',
-                  borderRadius: '6px',
-                  background: activeTab === 'pomodoro' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-                  border: 'none',
-                  color: activeTab === 'pomodoro' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  boxShadow: activeTab === 'pomodoro' ? 'var(--shadow-sm)' : 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                Pomodoro
-              </button>
+          {activePage === 'calendar' ? (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '7fr 4fr',
+              gap: '1.5rem',
+              height: '100%',
+              overflow: 'hidden'
+            }}>
+              {/* Calendar Side */}
+              <div style={{ height: '100%', overflow: 'hidden' }}>
+                <CalendarView
+                  events={events}
+                  onAddEvent={onAddEvent}
+                  onDeleteEvent={onDeleteEvent}
+                />
+              </div>
+              {/* Tasks Side */}
+              <div style={{ height: '100%', overflow: 'hidden' }}>
+                <TaskBoard
+                  tasks={tasks}
+                  taskLists={taskLists}
+                  activeListId={activeListId}
+                  setActiveListId={setActiveListId}
+                  onAddTask={onAddTask}
+                  onToggleTask={onToggleTask}
+                  onDeleteTask={onDeleteTask}
+                  loading={loadingData}
+                />
+              </div>
             </div>
-
-            {activeTab === 'tasks' ? (
-              <TaskBoard
-                tasks={tasks}
-                taskLists={taskLists}
-                activeListId={activeListId}
-                setActiveListId={setActiveListId}
-                onAddTask={onAddTask}
-                onToggleTask={onToggleTask}
-                onDeleteTask={onDeleteTask}
-                loading={loadingData}
-              />
-            ) : activeTab === 'habits' ? (
-              <HabitsBoard
-                habits={habits}
-                habitLogs={habitLogs}
-                taskLists={taskLists}
-                onAddHabit={onAddHabit}
-                onUpdateHabit={onUpdateHabit}
-                onDeleteHabit={onDeleteHabit}
-                onToggleHabit={onToggleHabit}
-              />
-            ) : (
-              <PomodoroBoard
-                tasks={tasks}
-                activeListId={activeListId}
-                pomodoroSessions={pomodoroSessions}
-                onSavePomodoroSession={onSavePomodoroSession}
-              />
-            )}
-          </div>
+          ) : activePage === 'dashboard' ? (
+            <DashboardOverview
+              user={user}
+              tasks={tasks}
+              events={events}
+              habits={habits}
+              habitLogs={habitLogs}
+              pomodoroSessions={pomodoroSessions}
+              activeListId={activeListId}
+              onToggleHabit={onToggleHabit}
+              onNavigate={setActivePage}
+            />
+          ) : activePage === 'habits' ? (
+            <HabitsBoard
+              habits={habits}
+              habitLogs={habitLogs}
+              taskLists={taskLists}
+              onAddHabit={onAddHabit}
+              onUpdateHabit={onUpdateHabit}
+              onDeleteHabit={onDeleteHabit}
+              onToggleHabit={onToggleHabit}
+            />
+          ) : activePage === 'pomodoro' ? (
+            <PomodoroBoard
+              tasks={tasks}
+              activeListId={activeListId}
+              pomodoroSessions={pomodoroSessions}
+              userId={user.uid}
+              onSavePomodoroSession={onSavePomodoroSession}
+              onToggleTask={onToggleTask}
+            />
+          ) : activePage === 'analytics' ? (
+            <AnalyticsPage
+              tasks={tasks}
+              habits={habits}
+              habitLogs={habitLogs}
+              pomodoroSessions={pomodoroSessions}
+              activeListId={activeListId}
+            />
+          ) : (
+            <SettingsPage
+              user={user}
+              theme={theme}
+              setTheme={setTheme}
+              styleMode={styleMode}
+              setStyleMode={setStyleMode}
+              isSyncing={isSyncing}
+              lastSynced={lastSynced}
+              syncError={syncError}
+              onSyncTrigger={onSyncTrigger}
+              onSignOut={onSignOut}
+            />
+          )}
         </main>
 
       </div>

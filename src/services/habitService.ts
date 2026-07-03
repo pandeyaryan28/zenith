@@ -27,12 +27,15 @@ export interface Habit {
   googleCalendarEventId?: string;
   googleTaskListId?: string;
   googleTaskId?: string;
+  category?: 'mind' | 'health' | 'work' | 'routine' | string;
+  difficulty?: 'easy' | 'medium' | 'hard';
 }
 
 export interface HabitLog {
   completedAt: string; // ISO String
   status: 'completed' | 'skipped';
   timeSpentMinutes?: number;
+  note?: string;
 }
 
 // Map JavaScript daysOfWeek indices to Google RRULE days
@@ -160,7 +163,8 @@ export const toggleHabitCompletion = async (
   habit: Habit,
   dateStr: string, // YYYY-MM-DD format
   currentCompleted: boolean,
-  timeSpent?: number
+  timeSpent?: number,
+  note?: string
 ): Promise<void> => {
   const logRef = doc(db, 'users', userId, 'habits', habit.id, 'logs', dateStr);
 
@@ -182,7 +186,8 @@ export const toggleHabitCompletion = async (
     const log: HabitLog = {
       completedAt: new Date().toISOString(),
       status: 'completed',
-      timeSpentMinutes: timeSpent
+      timeSpentMinutes: timeSpent,
+      note: note || undefined
     };
     await setDoc(logRef, log);
   }
