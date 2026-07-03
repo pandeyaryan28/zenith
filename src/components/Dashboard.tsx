@@ -13,7 +13,9 @@ import {
   Timer,
   Sliders,
   TrendingUp,
-  LayoutDashboard
+  LayoutDashboard,
+  Play,
+  Pause
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -49,11 +51,27 @@ interface DashboardProps {
   onDeleteHabit: (habit: Habit) => Promise<void>;
   onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number, note?: string) => Promise<void>;
   pomodoroSessions: PomodoroSession[];
-  onSavePomodoroSession: (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => Promise<void>;
   theme: 'light' | 'dark';
   setTheme: (theme: 'light' | 'dark') => void;
   styleMode: 'glassmorphism' | 'neumorphism' | 'minimalist' | 'retro';
   setStyleMode: (styleMode: 'glassmorphism' | 'neumorphism' | 'minimalist' | 'retro') => void;
+  
+  // Pomodoro states and callbacks
+  pomoType: 'work' | 'shortBreak' | 'longBreak';
+  pomoState: 'idle' | 'running' | 'paused';
+  pomoTotalDuration: number;
+  pomoTimeLeft: number;
+  pomoSelectedTaskIds: string[];
+  setPomoSelectedTaskIds: React.Dispatch<React.SetStateAction<string[]>>;
+  activeSoundId: string | null;
+  startPausePomo: () => void;
+  resetPomo: (savePartialCallback?: (durationMin: number, startTime: string) => void) => void;
+  skipPomo: () => void;
+  adjustPomoDuration: (amount: number) => void;
+  toggleAmbientSound: (soundId: string, url: string) => void;
+  handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
+  handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
+  onPomoSettingsChange: () => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -81,11 +99,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteHabit,
   onToggleHabit,
   pomodoroSessions,
-  onSavePomodoroSession,
   theme,
   setTheme,
   styleMode,
-  setStyleMode
+  setStyleMode,
+  pomoType,
+  pomoState,
+  pomoTotalDuration,
+  pomoTimeLeft,
+  pomoSelectedTaskIds,
+  setPomoSelectedTaskIds,
+  activeSoundId,
+  startPausePomo,
+  resetPomo,
+  skipPomo,
+  adjustPomoDuration,
+  toggleAmbientSound,
+  handlePresetSelect,
+  handleSavePartialSession,
+  onPomoSettingsChange
 }) => {
   const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'habits' | 'pomodoro' | 'analytics' | 'settings'>('dashboard');
 
@@ -230,6 +262,95 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             </div>
 
+            {/* Live Pomodoro Sidebar Widget */}
+            <div 
+              onClick={() => setActivePage('pomodoro')}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+                padding: '0.75rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid ' + (pomoState === 'running' ? 'var(--border-active)' : 'var(--border-color)'),
+                boxShadow: pomoState === 'running' ? '0 0 10px rgba(99, 102, 241, 0.1)' : 'none',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)'
+              }}
+              className="hover-scale"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    background: pomoState === 'running' ? 'var(--color-danger)' : 'var(--text-muted)',
+                    display: 'inline-block',
+                    animation: pomoState === 'running' ? 'pulse-glow 1.5s infinite' : 'none'
+                  }} />
+                  {pomoType === 'work' ? 'FOCUS SESSION' : pomoType === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
+                </span>
+                
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startPausePomo();
+                  }}
+                  style={{
+                    padding: '0.2rem',
+                    borderRadius: '50%',
+                    background: pomoState === 'running' ? 'rgba(255,255,255,0.06)' : 'var(--grad-primary)',
+                    border: 'none',
+                    width: '20px',
+                    height: '20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {pomoState === 'running' ? (
+                    <Pause size={10} style={{ color: 'var(--text-primary)' }} />
+                  ) : (
+                    <Play size={10} style={{ color: '#fff', marginLeft: '1px' }} />
+                  )}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '0.1rem' }}>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+                  {Math.floor(pomoTimeLeft / 60)}:{String(pomoTimeLeft % 60).padStart(2, '0')}
+                </span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  of {Math.round(pomoTotalDuration / 60)}m
+                </span>
+              </div>
+
+              {pomoSelectedTaskIds.length > 0 ? (
+                <div style={{ 
+                  fontSize: '0.65rem', 
+                  color: 'var(--text-secondary)', 
+                  overflow: 'hidden', 
+                  textOverflow: 'ellipsis', 
+                  whiteSpace: 'nowrap',
+                  background: 'rgba(0,0,0,0.15)',
+                  padding: '0.2rem 0.4rem',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(255,255,255,0.02)',
+                  marginTop: '0.1rem'
+                }}>
+                  Focusing: {tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(t => t.title).join(', ')}
+                </div>
+              ) : (
+                pomoType === 'work' && (
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                    No tasks linked.
+                  </span>
+                )
+              )}
+            </div>
+
           </div>
 
           {/* User Details & Sign Out */}
@@ -318,6 +439,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
               activeListId={activeListId}
               onToggleHabit={onToggleHabit}
               onNavigate={setActivePage}
+              pomoType={pomoType}
+              pomoState={pomoState}
+              pomoTotalDuration={pomoTotalDuration}
+              pomoTimeLeft={pomoTimeLeft}
+              pomoSelectedTaskIds={pomoSelectedTaskIds}
+              startPausePomo={startPausePomo}
+              resetPomo={resetPomo}
             />
           ) : activePage === 'habits' ? (
             <HabitsBoard
@@ -335,8 +463,21 @@ export const Dashboard: React.FC<DashboardProps> = ({
               activeListId={activeListId}
               pomodoroSessions={pomodoroSessions}
               userId={user.uid}
-              onSavePomodoroSession={onSavePomodoroSession}
               onToggleTask={onToggleTask}
+              pomoType={pomoType}
+              pomoState={pomoState}
+              pomoTotalDuration={pomoTotalDuration}
+              pomoTimeLeft={pomoTimeLeft}
+              pomoSelectedTaskIds={pomoSelectedTaskIds}
+              setPomoSelectedTaskIds={setPomoSelectedTaskIds}
+              activeSoundId={activeSoundId}
+              startPausePomo={startPausePomo}
+              resetPomo={resetPomo}
+              skipPomo={skipPomo}
+              adjustPomoDuration={adjustPomoDuration}
+              toggleAmbientSound={toggleAmbientSound}
+              handlePresetSelect={handlePresetSelect}
+              handleSavePartialSession={handleSavePartialSession}
             />
           ) : activePage === 'analytics' ? (
             <AnalyticsPage
@@ -358,6 +499,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               syncError={syncError}
               onSyncTrigger={onSyncTrigger}
               onSignOut={onSignOut}
+              onPomoSettingsChange={onPomoSettingsChange}
             />
           )}
         </main>

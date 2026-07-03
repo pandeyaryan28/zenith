@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query } from 'firebase/firestore';
@@ -26,7 +26,7 @@ import {
   toggleHabitCompletion 
 } from './services/habitService';
 import type { Habit, HabitLog } from './services/habitService';
-import { savePomodoroSession } from './services/pomodoroService';
+import { savePomodoroSession, playNotificationSound } from './services/pomodoroService';
 import type { PomodoroSession } from './services/pomodoroService';
 
 
@@ -66,6 +66,242 @@ function App() {
     document.documentElement.setAttribute('data-style', styleMode);
     localStorage.setItem('zenith-style-mode', styleMode);
   }, [styleMode]);
+
+  // =========================================================================
+  // Pomodoro Live Timer State & Logic (Background persistent thread)
+  // =========================================================================
+  const [pomoType, setPomoType] = useState<'work' | 'shortBreak' | 'longBreak'>('work');
+  const [pomoState, setPomoState] = useState<'idle' | 'running' | 'paused'>('idle');
+  
+  const getPresetDuration = (type: 'work' | 'shortBreak' | 'longBreak') => {
+    if (type === 'work') {
+      return Number(localStorage.getItem('zenith-pomo-work') || '25') * 60;
+    } else if (type === 'shortBreak') {
+      return Number(localStorage.getItem('zenith-pomo-short') || '5') * 60;
+    } else {
+      return Number(localStorage.getItem('zenith-pomo-long') || '15') * 60;
+    }
+  };
+
+  const [pomoTotalDuration, setPomoTotalDuration] = useState(() => getPresetDuration('work'));
+  const [pomoTimeLeft, setPomoTimeLeft] = useState(pomoTotalDuration);
+  const [pomoStartTime, setPomoStartTime] = useState<string | null>(null);
+  const [pomoSelectedTaskIds, setPomoSelectedTaskIds] = useState<string[]>([]);
+  const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
+  
+  const audioRefs = useRef<{ [id: string]: HTMLAudioElement | null }>({});
+
+  // Sync timeLeft when changing preset or settings while idle
+  useEffect(() => {
+    if (pomoState === 'idle') {
+      const dur = getPresetDuration(pomoType);
+      setPomoTotalDuration(dur);
+      setPomoTimeLeft(dur);
+    }
+  }, [pomoType, pomoState]);
+
+  // Dynamic sound effects loader and cleanup
+  const toggleAmbientSound = (soundId: string, url: string) => {
+    if (activeSoundId === soundId) {
+      const audio = audioRefs.current[soundId];
+      if (audio) audio.pause();
+      setActiveSoundId(null);
+    } else {
+      if (activeSoundId) {
+        const prev = audioRefs.current[activeSoundId];
+        if (prev) prev.pause();
+      }
+      let audio = audioRefs.current[soundId];
+      if (!audio) {
+        audio = new Audio(url);
+        audio.loop = true;
+        audioRefs.current[soundId] = audio;
+      }
+      setActiveSoundId(soundId);
+      audio.play().catch(e => {
+        console.error("Audio playback blocked by browser settings.", e);
+        setActiveSoundId(null);
+      });
+    }
+  };
+
+  // Timer Tick effect
+  useEffect(() => {
+    let timerInterval: any = null;
+    if (pomoState === 'running') {
+      if (!pomoStartTime) {
+        setPomoStartTime(new Date().toISOString());
+      }
+      timerInterval = setInterval(() => {
+        setPomoTimeLeft((prev) => {
+          if (prev <= 1) {
+            handleTimerComplete();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      if (timerInterval) clearInterval(timerInterval);
+    }
+    return () => {
+      if (timerInterval) clearInterval(timerInterval);
+    };
+  }, [pomoState, pomoStartTime, pomoType, pomoTotalDuration, pomoSelectedTaskIds]);
+
+  const handleTimerComplete = async () => {
+    setPomoState('idle');
+    
+    const soundEnabled = localStorage.getItem('zenith-sound-enabled') !== 'false';
+    if (soundEnabled) {
+      playNotificationSound();
+    }
+
+    const endStr = new Date().toISOString();
+    const finalStartTime = pomoStartTime || new Date(Date.now() - pomoTotalDuration * 1000).toISOString();
+
+    try {
+      const durationMin = Math.round(pomoTotalDuration / 60);
+      const selectedTasks = tasks.filter(t => pomoSelectedTaskIds.includes(t.id));
+      const taskTitles = selectedTasks.map(t => t.title);
+
+      if (user) {
+        await savePomodoroSession(user.uid, {
+          startTime: finalStartTime,
+          endTime: endStr,
+          durationMinutes: durationMin,
+          taskIds: pomoSelectedTaskIds,
+          taskTitles,
+          type: pomoType,
+          completed: true
+        });
+      }
+    } catch (err) {
+      console.error("Failed to save completed Pomodoro session:", err);
+    }
+
+    const nextType = pomoType === 'work' ? 'shortBreak' : 'work';
+    setPomoType(nextType);
+    const duration = getPresetDuration(nextType);
+    setPomoTotalDuration(duration);
+    setPomoTimeLeft(duration);
+    setPomoStartTime(null);
+
+    alert(pomoType === 'work' ? "Focus session complete! Time to take a break." : "Break complete! Ready to focus again?");
+  };
+
+  const handlePresetSelect = (type: typeof pomoType) => {
+    if (pomoState !== 'idle') {
+      const confirmChange = window.confirm("Are you sure you want to stop the active timer to switch presets?");
+      if (!confirmChange) return;
+    }
+    setPomoState('idle');
+    setPomoType(type);
+    const duration = getPresetDuration(type);
+    setPomoTotalDuration(duration);
+    setPomoTimeLeft(duration);
+    setPomoStartTime(null);
+  };
+
+  const adjustPomoDuration = (amount: number) => {
+    if (pomoState !== 'idle') return;
+    const newDuration = Math.max(60, pomoTotalDuration + amount);
+    setPomoTotalDuration(newDuration);
+    setPomoTimeLeft(newDuration);
+  };
+
+  const startPausePomo = () => {
+    if (pomoState === 'running') {
+      setPomoState('paused');
+    } else {
+      setPomoState('running');
+    }
+  };
+
+  const resetPomo = (savePartialCallback?: (durationMin: number, startTime: string) => void) => {
+    if (pomoState === 'idle') return;
+
+    const timeSpentSeconds = pomoTotalDuration - pomoTimeLeft;
+    if (timeSpentSeconds >= 60 && pomoType === 'work' && savePartialCallback) {
+      savePartialCallback(Math.round(timeSpentSeconds / 60), pomoStartTime || new Date().toISOString());
+    } else {
+      setPomoState('idle');
+      const dur = getPresetDuration(pomoType);
+      setPomoTotalDuration(dur);
+      setPomoTimeLeft(dur);
+      setPomoStartTime(null);
+    }
+  };
+
+  const handleSavePartialSession = async (durationMin: number, startTimeStr: string) => {
+    if (!user) return;
+    try {
+      const selectedTasks = tasks.filter(t => pomoSelectedTaskIds.includes(t.id));
+      const taskTitles = selectedTasks.map(t => t.title);
+
+      await savePomodoroSession(user.uid, {
+        startTime: startTimeStr,
+        endTime: new Date().toISOString(),
+        durationMinutes: durationMin,
+        taskIds: pomoSelectedTaskIds,
+        taskTitles,
+        type: pomoType,
+        completed: false
+      });
+    } catch (err) {
+      console.error("Failed to save partial session:", err);
+    } finally {
+      setPomoState('idle');
+      const dur = getPresetDuration(pomoType);
+      setPomoTotalDuration(dur);
+      setPomoTimeLeft(dur);
+      setPomoStartTime(null);
+    }
+  };
+
+  const skipPomo = () => {
+    const confirmSkip = window.confirm("Do you want to skip this session?");
+    if (!confirmSkip) return;
+    setPomoState('idle');
+    setPomoStartTime(null);
+    const nextType = pomoType === 'work' ? 'shortBreak' : 'work';
+    handlePresetSelect(nextType);
+  };
+
+  const handlePomoSettingsChange = () => {
+    if (pomoState === 'idle') {
+      const dur = getPresetDuration(pomoType);
+      setPomoTotalDuration(dur);
+      setPomoTimeLeft(dur);
+    }
+  };
+
+  // Clean up ambient audio on unmount or user logout
+  useEffect(() => {
+    return () => {
+      Object.keys(audioRefs.current).forEach(id => {
+        const audio = audioRefs.current[id];
+        if (audio) {
+          audio.pause();
+          audioRefs.current[id] = null;
+        }
+      });
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setPomoState('idle');
+      setPomoStartTime(null);
+      setPomoSelectedTaskIds([]);
+      setActiveSoundId((prev) => {
+        if (prev && audioRefs.current[prev]) {
+          audioRefs.current[prev]?.pause();
+        }
+        return null;
+      });
+    }
+  }, [user]);
 
   // 1. Auth Subscription Listener
   useEffect(() => {
@@ -342,14 +578,7 @@ function App() {
     }
   };
 
-  const handleSavePomodoroSession = async (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => {
-    if (!user) return;
-    try {
-      await savePomodoroSession(user.uid, sessionData);
-    } catch (err) {
-      console.error("Failed to save Pomodoro session:", err);
-    }
-  };
+
 
   // =========================================================================
   // Render States
@@ -388,7 +617,6 @@ function App() {
       onUpdateHabit={handleUpdateHabit}
       onDeleteHabit={handleDeleteHabit}
       onToggleHabit={handleToggleHabit}
-      onSavePomodoroSession={handleSavePomodoroSession}
       isSyncing={isSyncing}
       lastSynced={lastSynced}
       syncError={syncError}
@@ -399,6 +627,21 @@ function App() {
       setTheme={setTheme}
       styleMode={styleMode}
       setStyleMode={setStyleMode}
+      pomoType={pomoType}
+      pomoState={pomoState}
+      pomoTotalDuration={pomoTotalDuration}
+      pomoTimeLeft={pomoTimeLeft}
+      pomoSelectedTaskIds={pomoSelectedTaskIds}
+      setPomoSelectedTaskIds={setPomoSelectedTaskIds}
+      activeSoundId={activeSoundId}
+      startPausePomo={startPausePomo}
+      resetPomo={resetPomo}
+      skipPomo={skipPomo}
+      adjustPomoDuration={adjustPomoDuration}
+      toggleAmbientSound={toggleAmbientSound}
+      handlePresetSelect={handlePresetSelect}
+      handleSavePartialSession={handleSavePartialSession}
+      onPomoSettingsChange={handlePomoSettingsChange}
     />
   );
 }

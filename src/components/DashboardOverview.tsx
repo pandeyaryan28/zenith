@@ -14,7 +14,8 @@ import {
   TrendingUp,
   Sparkles,
   ChevronRight,
-  Coffee
+  Coffee,
+  RotateCcw
 } from 'lucide-react';
 
 interface DashboardOverviewProps {
@@ -27,6 +28,15 @@ interface DashboardOverviewProps {
   activeListId: string;
   onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
   onNavigate: (page: 'dashboard' | 'calendar' | 'habits' | 'pomodoro' | 'analytics' | 'settings') => void;
+  
+  // Lifted Pomodoro props
+  pomoType: 'work' | 'shortBreak' | 'longBreak';
+  pomoState: 'idle' | 'running' | 'paused';
+  pomoTotalDuration: number;
+  pomoTimeLeft: number;
+  pomoSelectedTaskIds: string[];
+  startPausePomo: () => void;
+  resetPomo: (savePartialCallback?: (durationMin: number, startTime: string) => void) => void;
 }
 
 const QUOTES = [
@@ -47,7 +57,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   pomodoroSessions,
   activeListId,
   onToggleHabit,
-  onNavigate
+  onNavigate,
+  pomoType,
+  pomoState,
+  pomoTotalDuration,
+  pomoTimeLeft,
+  pomoSelectedTaskIds,
+  startPausePomo,
+  resetPomo
 }) => {
   const [quote, setQuote] = useState(QUOTES[0]);
 
@@ -337,6 +354,113 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 })}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Column 3: Live Focus Station */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Timer size={18} style={{ color: pomoType === 'work' ? 'var(--color-primary)' : 'var(--color-secondary)' }} />
+              Active Focus Session
+            </h3>
+            <button 
+              onClick={() => onNavigate('pomodoro')} 
+              style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.75rem', color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Open Station <ArrowRight size={12} />
+            </button>
+          </div>
+
+          <div 
+            className="glass-card" 
+            style={{ 
+              padding: '1.25rem', 
+              minHeight: '260px', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              justifyContent: 'space-between', 
+              gap: '1rem', 
+              border: pomoState === 'running' ? '1px solid var(--border-active)' : '1px solid var(--border-color)',
+              transition: 'all var(--transition-normal)'
+            }}
+          >
+            
+            {/* Timer Clock & Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.15)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em' }}>
+                  {pomoType === 'work' ? 'FOCUS TIME REMAINING' : pomoType === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
+                </span>
+                <span style={{ fontSize: '1.6rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginTop: '0.15rem', lineHeight: 1 }}>
+                  {Math.floor(pomoTimeLeft / 60)}:{String(pomoTimeLeft % 60).padStart(2, '0')}
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500, marginLeft: '0.35rem' }}>
+                    / {Math.round(pomoTotalDuration / 60)}m
+                  </span>
+                </span>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                {pomoState !== 'idle' && (
+                  <button 
+                    onClick={() => resetPomo()}
+                    className="btn-secondary"
+                    style={{ padding: '0.4rem', borderRadius: '50%' }}
+                    title="Reset timer"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                )}
+                
+                <button
+                  onClick={startPausePomo}
+                  className="btn-primary"
+                  style={{ 
+                    padding: '0.45rem 0.85rem', 
+                    fontSize: '0.75rem', 
+                    borderRadius: 'var(--radius-sm)',
+                    background: pomoState === 'running' ? 'rgba(255, 255, 255, 0.08)' : 'var(--grad-primary)',
+                    border: pomoState === 'running' ? '1px solid var(--border-color)' : 'none',
+                    fontWeight: 600
+                  }}
+                >
+                  {pomoState === 'running' ? 'Pause' : 'Start'}
+                </button>
+              </div>
+            </div>
+
+            {/* Target Tasks checklist */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Focus Targets</span>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', maxHeight: '110px', paddingRight: '0.25rem' }} className="custom-scroll">
+                {pomoSelectedTaskIds.length === 0 ? (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.2rem' }}>
+                    No tasks linked. Go to Focus Station to select target tasks.
+                  </span>
+                ) : (
+                  tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(task => (
+                    <div 
+                      key={task.id}
+                      style={{ 
+                        fontSize: '0.75rem', 
+                        color: 'var(--text-primary)',
+                        padding: '0.35rem 0.5rem',
+                        background: 'rgba(255,255,255,0.01)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      ✓ {task.title}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
           </div>
         </div>
 

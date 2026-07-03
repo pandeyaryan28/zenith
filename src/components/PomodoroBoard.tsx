@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import type { LocalTask } from '../services/syncService';
 import type { PomodoroSession } from '../services/pomodoroService';
 import { 
@@ -19,15 +19,29 @@ import {
   Music,
   Check
 } from 'lucide-react';
-import { playNotificationSound, deletePomodoroSession } from '../services/pomodoroService';
+import { deletePomodoroSession } from '../services/pomodoroService';
 
 interface PomodoroBoardProps {
   tasks: LocalTask[];
   activeListId: string;
   pomodoroSessions: PomodoroSession[];
   userId: string;
-  onSavePomodoroSession: (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => Promise<void>;
   onToggleTask: (taskId: string, currentStatus: 'needsAction' | 'completed') => Promise<void>;
+
+  pomoType: 'work' | 'shortBreak' | 'longBreak';
+  pomoState: 'idle' | 'running' | 'paused';
+  pomoTotalDuration: number;
+  pomoTimeLeft: number;
+  pomoSelectedTaskIds: string[];
+  setPomoSelectedTaskIds: React.Dispatch<React.SetStateAction<string[]>>;
+  activeSoundId: string | null;
+  startPausePomo: () => void;
+  resetPomo: (savePartialCallback?: (durationMin: number, startTime: string) => void) => void;
+  skipPomo: () => void;
+  adjustPomoDuration: (amount: number) => void;
+  toggleAmbientSound: (soundId: string, url: string) => void;
+  handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
+  handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
 }
 
 const AMBIENT_SOUNDS = [
@@ -42,265 +56,70 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
   activeListId,
   pomodoroSessions,
   userId,
-  onSavePomodoroSession,
-  onToggleTask
+  onToggleTask,
+  pomoType,
+  pomoState,
+  pomoTotalDuration,
+  pomoTimeLeft,
+  pomoSelectedTaskIds,
+  setPomoSelectedTaskIds,
+  activeSoundId,
+  startPausePomo,
+  resetPomo,
+  skipPomo,
+  adjustPomoDuration,
+  toggleAmbientSound,
+  handlePresetSelect,
+  handleSavePartialSession
 }) => {
-  // Read durations from localStorage or fall back to default settings
-  const getPresetDuration = (type: 'work' | 'shortBreak' | 'longBreak') => {
-    if (type === 'work') {
-      return Number(localStorage.getItem('zenith-pomo-work') || '25') * 60;
-    } else if (type === 'shortBreak') {
-      return Number(localStorage.getItem('zenith-pomo-short') || '5') * 60;
-    } else {
-      return Number(localStorage.getItem('zenith-pomo-long') || '15') * 60;
-    }
-  };
-
-  const [currentType, setCurrentType] = useState<'work' | 'shortBreak' | 'longBreak'>('work');
-  const [timerState, setTimerState] = useState<'idle' | 'running' | 'paused'>('idle');
-  const [totalDuration, setTotalDuration] = useState(() => getPresetDuration('work'));
-  const [timeLeft, setTimeLeft] = useState(totalDuration);
-  const [startTime, setStartTime] = useState<string | null>(null);
-
-  // Task Selection State
-  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  // Local state for task search & selector popup
   const [searchQuery, setSearchQuery] = useState('');
   const [isTaskSelectorOpen, setIsTaskSelectorOpen] = useState(false);
 
-  // Partial session log
+  // Local state for partial focus sessions confirmation modal
   const [showPartialModal, setShowPartialModal] = useState(false);
   const [partialSessionDuration, setPartialSessionDuration] = useState(0);
   const [partialStartTime, setPartialStartTime] = useState<string | null>(null);
 
-  // Ambient sound state
-  const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
-  const audioRefs = useRef<{ [id: string]: HTMLAudioElement | null }>({});
+  // Aliases for compatibility with the existing TSX rendering code
+  const currentType = pomoType;
+  const timerState = pomoState;
+  const timeLeft = pomoTimeLeft;
+  const totalDuration = pomoTotalDuration;
+  const selectedTaskIds = pomoSelectedTaskIds;
+  
+  const handleStartPause = startPausePomo;
+  const handleSkip = skipPomo;
+  const adjustDuration = adjustPomoDuration;
 
-  const timerIntervalRef = useRef<any>(null);
-
-  // Sync timeLeft when changing page/preset while idle
-  useEffect(() => {
-    if (timerState === 'idle') {
-      const dur = getPresetDuration(currentType);
-      setTotalDuration(dur);
-      setTimeLeft(dur);
-    }
-  }, [currentType, timerState]);
-
-  // Clean up ambient audio on unmount
-  useEffect(() => {
-    return () => {
-      Object.keys(audioRefs.current).forEach(id => {
-        const audio = audioRefs.current[id];
-        if (audio) {
-          audio.pause();
-          audioRefs.current[id] = null;
-        }
-      });
-    };
-  }, []);
-
-  const handlePresetSelect = (type: typeof currentType) => {
-    if (timerState !== 'idle') {
-      const confirmChange = window.confirm("Are you sure you want to stop the active timer to switch presets?");
-      if (!confirmChange) return;
-    }
-
-    stopInterval();
-    setTimerState('idle');
-    setCurrentType(type);
-    const duration = getPresetDuration(type);
-    setTotalDuration(duration);
-    setTimeLeft(duration);
-    setStartTime(null);
-  };
-
-  // Adjust duration by +/- 1 minute (while idle)
-  const adjustDuration = (amount: number) => {
-    if (timerState !== 'idle') return;
-    const newDuration = Math.max(60, totalDuration + amount);
-    setTotalDuration(newDuration);
-    setTimeLeft(newDuration);
-  };
-
-  // Timer Tick effect
-  useEffect(() => {
-    if (timerState === 'running') {
-      if (!startTime) {
-        setStartTime(new Date().toISOString());
-      }
-      
-      timerIntervalRef.current = setInterval(() => {
-        setTimeLeft((prev) => {
-          if (prev <= 1) {
-            handleTimerComplete();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      stopInterval();
-    }
-
-    return () => stopInterval();
-  }, [timerState]);
-
-  const stopInterval = () => {
-    if (timerIntervalRef.current) {
-      clearInterval(timerIntervalRef.current);
-      timerIntervalRef.current = null;
-    }
-  };
-
-  const handleTimerComplete = async () => {
-    stopInterval();
-    setTimerState('idle');
-    
-    // Play sound if enabled in settings
-    const soundEnabled = localStorage.getItem('zenith-sound-enabled') !== 'false';
-    if (soundEnabled) {
-      playNotificationSound();
-    }
-
-    const endStr = new Date().toISOString();
-    const finalStartTime = startTime || new Date(Date.now() - totalDuration * 1000).toISOString();
-
-    try {
-      const durationMin = Math.round(totalDuration / 60);
-      const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
-      const taskTitles = selectedTasks.map(t => t.title);
-
-      await onSavePomodoroSession({
-        startTime: finalStartTime,
-        endTime: endStr,
-        durationMinutes: durationMin,
-        taskIds: selectedTaskIds,
-        taskTitles,
-        type: currentType,
-        completed: true
-      });
-    } catch (err) {
-      console.error(err);
-    }
-
-    if (currentType === 'work') {
-      alert("Focus session complete! Time to take a break.");
-      handlePresetSelect('shortBreak');
-    } else {
-      alert("Break complete! Ready to focus again?");
-      handlePresetSelect('work');
-    }
-    setStartTime(null);
-  };
-
-  const handleStartPause = () => {
-    if (timerState === 'running') {
-      setTimerState('paused');
-    } else {
-      setTimerState('running');
-    }
-  };
-
+  // Local helper wrappers
   const handleReset = () => {
-    if (timerState === 'idle') return;
-
-    stopInterval();
-    const timeSpentSeconds = totalDuration - timeLeft;
-    if (timeSpentSeconds >= 60 && currentType === 'work') {
-      setPartialSessionDuration(Math.round(timeSpentSeconds / 60));
-      setPartialStartTime(startTime);
+    resetPomo((durationMin, startTimeStr) => {
+      setPartialSessionDuration(durationMin);
+      setPartialStartTime(startTimeStr);
       setShowPartialModal(true);
-    } else {
-      setTimerState('idle');
-      setTimeLeft(totalDuration);
-      setStartTime(null);
-    }
+    });
   };
 
   const handleSavePartial = async () => {
     if (!partialStartTime) return;
-    try {
-      const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
-      const taskTitles = selectedTasks.map(t => t.title);
-
-      await onSavePomodoroSession({
-        startTime: partialStartTime,
-        endTime: new Date().toISOString(),
-        durationMinutes: partialSessionDuration,
-        taskIds: selectedTaskIds,
-        taskTitles,
-        type: currentType,
-        completed: false
-      });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setShowPartialModal(false);
-      setTimerState('idle');
-      setTimeLeft(totalDuration);
-      setStartTime(null);
-    }
+    await handleSavePartialSession(partialSessionDuration, partialStartTime);
+    setShowPartialModal(false);
   };
 
   const handleDiscardPartial = () => {
     setShowPartialModal(false);
-    setTimerState('idle');
-    setTimeLeft(totalDuration);
-    setStartTime(null);
+    resetPomo(); // Call without callback to force-reset timer to idle
   };
 
-  const handleSkip = () => {
-    const confirmSkip = window.confirm("Do you want to skip this session?");
-    if (!confirmSkip) return;
-
-    stopInterval();
-    setTimerState('idle');
-    setStartTime(null);
-    if (currentType === 'work') {
-      handlePresetSelect('shortBreak');
-    } else {
-      handlePresetSelect('work');
-    }
-  };
-
-  // Ambient sound toggle
-  const toggleAmbientSound = (soundId: string, url: string) => {
-    if (activeSoundId === soundId) {
-      // Pause
-      const audio = audioRefs.current[soundId];
-      if (audio) audio.pause();
-      setActiveSoundId(null);
-    } else {
-      // Pause active if exists
-      if (activeSoundId) {
-        const prev = audioRefs.current[activeSoundId];
-        if (prev) prev.pause();
-      }
-      
-      // Play new
-      let audio = audioRefs.current[soundId];
-      if (!audio) {
-        audio = new Audio(url);
-        audio.loop = true;
-        audioRefs.current[soundId] = audio;
-      }
-      setActiveSoundId(soundId);
-      audio.play().catch(e => {
-        console.error("Audio playback blocked by browser settings.", e);
-        setActiveSoundId(null);
-      });
-    }
-  };
-
-  // Task checking list
+  // Task checking list helpers
   const activeTasks = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted);
   const filteredTasks = activeTasks.filter(t => 
     t.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const toggleTaskSelection = (taskId: string) => {
-    setSelectedTaskIds(prev => 
+    setPomoSelectedTaskIds(prev => 
       prev.includes(taskId) 
         ? prev.filter(id => id !== taskId) 
         : [...prev, taskId]
@@ -310,8 +129,7 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
   const handleTaskCompleteDirectly = async (taskId: string) => {
     try {
       await onToggleTask(taskId, 'needsAction'); // completes it
-      // Remove from selected list
-      setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
+      setPomoSelectedTaskIds(prev => prev.filter(id => id !== taskId));
     } catch (err) {
       console.error("Failed to complete task:", err);
     }

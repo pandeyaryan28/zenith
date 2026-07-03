@@ -28,6 +28,7 @@ interface SettingsPageProps {
   syncError: string | null;
   onSyncTrigger: () => void;
   onSignOut: () => void;
+  onPomoSettingsChange?: () => void;
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({
@@ -40,7 +41,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   lastSynced,
   syncError,
   onSyncTrigger,
-  onSignOut
+  onSignOut,
+  onPomoSettingsChange
 }) => {
   // Pomodoro Durations (in minutes)
   const [workMin, setWorkMin] = useState(() => Number(localStorage.getItem('zenith-pomo-work') || '25'));
@@ -64,6 +66,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       setLongMin(val);
       localStorage.setItem('zenith-pomo-long', String(val));
     }
+    
+    // Notify parent to sync the idle timer
+    onPomoSettingsChange?.();
   };
 
   const handleSoundToggle = () => {
