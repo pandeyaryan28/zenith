@@ -23,6 +23,7 @@ import {
   fetchGoogleCalendars
 } from './googleApi';
 import type { GoogleTask, GoogleEvent } from './googleApi';
+import type { Habit, HabitLog } from './habitService';
 
 // Local cache interfaces extension
 export interface LocalTask extends GoogleTask {
@@ -400,4 +401,86 @@ export const deleteLocalEvent = async (
 
   // Trigger sync
   syncEvents(userId).catch(console.error);
+};
+
+// Synchronize Habit tasks bidirectionally
+export const syncHabits = async (userId: string): Promise<void> => {
+  try {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${y}-${m}-${day}`;
+    const todayDayOfWeek = today.getDay();
+
+    // 1. Fetch all habits for this user
+    const habitsRef = collection(db, 'users', userId, 'habits');
+    const habitsSnap = await getDocs(habitsRef);
+    const habits: Habit[] = [];
+    habitsSnap.forEach(docSnap => {
+      habits.push(docSnap.data() as Habit);
+    });
+
+    const activeHabits = habits.filter(h => !h.archived);
+
+    for (const habit of activeHabits) {
+      if (habit.syncToTasks && habit.googleTaskListId) {
+        try {
+          // Check if scheduled today
+          let isScheduledToday = true;
+          if (habit.frequency === 'custom' && habit.daysOfWeek) {
+            isScheduledToday = habit.daysOfWeek.includes(todayDayOfWeek);
+          }
+
+          if (!isScheduledToday) continue;
+
+          // Fetch tasks in target list
+          const googleTasks = await fetchGoogleTasks(habit.googleTaskListId);
+          
+          let gTask = googleTasks.find(t => t.id === habit.googleTaskId);
+          if (!gTask) {
+            gTask = googleTasks.find(t => t.title === `Habit: ${habit.title}`);
+          }
+
+          // Fetch today's log
+          const logRef = doc(db, 'users', userId, 'habits', habit.id, 'logs', todayStr);
+          const logSnap = await getDoc(logRef);
+          const isCompletedLocally = logSnap.exists() && logSnap.data()?.status === 'completed';
+
+          if (gTask) {
+            const isCompletedOnGoogle = gTask.status === 'completed';
+
+            if (isCompletedOnGoogle && !isCompletedLocally) {
+              const log: HabitLog = {
+                completedAt: new Date().toISOString(),
+                status: 'completed'
+              };
+              await setDoc(logRef, log);
+            } else if (!isCompletedOnGoogle && isCompletedLocally) {
+              await updateGoogleTask(habit.googleTaskListId, gTask.id, { status: 'completed' });
+            }
+          } else {
+            // Task does not exist for today. Create it.
+            const dueTime = new Date();
+            dueTime.setHours(23, 59, 59, 999);
+            
+            const newGTask = await createGoogleTask(habit.googleTaskListId, {
+              title: `Habit: ${habit.title}`,
+              notes: `Zenith Habit tracker sync. Complete this task to check off your habit today.`,
+              status: isCompletedLocally ? 'completed' : 'needsAction',
+              due: dueTime.toISOString()
+            });
+
+            await updateDoc(doc(db, 'users', userId, 'habits', habit.id), {
+              googleTaskId: newGTask.id
+            });
+          }
+        } catch (err) {
+          console.error(`Error syncing habit tasks for ${habit.title}:`, err);
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Habit sync routine failed:", err);
+  }
 };

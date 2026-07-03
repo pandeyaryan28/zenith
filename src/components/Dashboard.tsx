@@ -10,8 +10,13 @@ import {
   User as UserIcon, 
   CheckSquare, 
   Calendar as CalendarIcon,
-  Flame
+  Flame,
+  CheckCircle2
 } from 'lucide-react';
+import { HabitsBoard } from './HabitsBoard';
+import type { Habit, HabitLog } from '../services/habitService';
+import { calculateStreak } from '../services/habitService';
+import { useState } from 'react';
 
 interface DashboardProps {
   user: User;
@@ -31,6 +36,12 @@ interface DashboardProps {
   onSyncTrigger: () => void;
   onSignOut: () => void;
   loadingData: boolean;
+  habits: Habit[];
+  habitLogs: { [habitId: string]: { [dateStr: string]: HabitLog } };
+  onAddHabit: (habitData: Omit<Habit, 'id' | 'createdAt' | 'archived'>) => Promise<void>;
+  onUpdateHabit: (habitId: string, habitData: Partial<Habit>) => Promise<void>;
+  onDeleteHabit: (habit: Habit) => Promise<void>;
+  onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -50,10 +61,46 @@ export const Dashboard: React.FC<DashboardProps> = ({
   syncError,
   onSyncTrigger,
   onSignOut,
-  loadingData
+  loadingData,
+  habits,
+  habitLogs,
+  onAddHabit,
+  onUpdateHabit,
+  onDeleteHabit,
+  onToggleHabit
 }) => {
+  const [activeTab, setActiveTab] = useState<'tasks' | 'habits'>('tasks');
   const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
   const totalEventsCount = events.filter(e => !e.localDeleted).length;
+
+  // Habits statistics
+  const getLocalDateStr = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const todayLocalDateStr = getLocalDateStr(new Date());
+
+  const activeHabitsToday = habits.filter(h => {
+    if (h.archived) return false;
+    if (h.frequency === 'custom' && h.daysOfWeek) {
+      return h.daysOfWeek.includes(new Date().getDay());
+    }
+    return true;
+  });
+
+  const completedHabitsTodayCount = activeHabitsToday.filter(h => {
+    const logs = habitLogs[h.id] || {};
+    return logs[todayLocalDateStr]?.status === 'completed';
+  }).length;
+
+  const streakMetrics = habits
+    .filter(h => !h.archived)
+    .map(h => calculateStreak(habitLogs[h.id] || {}, h.frequency, h.daysOfWeek));
+  const maxStreak = streakMetrics.length > 0 
+    ? Math.max(...streakMetrics.map(m => m.currentStreak)) 
+    : 0;
 
   return (
     <div className="page-container" style={{ minHeight: '100vh', overflow: 'hidden' }}>
@@ -121,6 +168,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Events scheduled</span>
                 </div>
               </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <Flame size={16} style={{ color: 'var(--color-warning)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{maxStreak} days</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Best habit streak</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <CheckCircle2 size={16} style={{ color: 'var(--color-success)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{completedHabitsTodayCount} / {activeHabitsToday.length}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Habits completed</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -181,18 +244,67 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           </div>
 
-          {/* Tasks Side */}
-          <div style={{ height: '100%', overflow: 'hidden' }}>
-            <TaskBoard
-              tasks={tasks}
-              taskLists={taskLists}
-              activeListId={activeListId}
-              setActiveListId={setActiveListId}
-              onAddTask={onAddTask}
-              onToggleTask={onToggleTask}
-              onDeleteTask={onDeleteTask}
-              loading={loadingData}
-            />
+          {/* Tasks Side / Habits Side */}
+          <div style={{ height: '100%', overflow: 'hidden', display: 'grid', gridTemplateRows: 'auto 1fr', gap: '1rem' }}>
+            
+            {/* View Mode Segmented Pill */}
+            <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.25)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <button 
+                onClick={() => setActiveTab('tasks')}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.85rem',
+                  borderRadius: '6px',
+                  background: activeTab === 'tasks' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  border: 'none',
+                  color: activeTab === 'tasks' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeTab === 'tasks' ? 'var(--shadow-sm)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Tasks
+              </button>
+              <button 
+                onClick={() => setActiveTab('habits')}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.85rem',
+                  borderRadius: '6px',
+                  background: activeTab === 'habits' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  border: 'none',
+                  color: activeTab === 'habits' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeTab === 'habits' ? 'var(--shadow-sm)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Habits
+              </button>
+            </div>
+
+            {activeTab === 'tasks' ? (
+              <TaskBoard
+                tasks={tasks}
+                taskLists={taskLists}
+                activeListId={activeListId}
+                setActiveListId={setActiveListId}
+                onAddTask={onAddTask}
+                onToggleTask={onToggleTask}
+                onDeleteTask={onDeleteTask}
+                loading={loadingData}
+              />
+            ) : (
+              <HabitsBoard
+                habits={habits}
+                habitLogs={habitLogs}
+                taskLists={taskLists}
+                onAddHabit={onAddHabit}
+                onUpdateHabit={onUpdateHabit}
+                onDeleteHabit={onDeleteHabit}
+                onToggleHabit={onToggleHabit}
+              />
+            )}
           </div>
         </main>
 

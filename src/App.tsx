@@ -10,7 +10,8 @@ import {
   addLocalEvent, 
   deleteLocalEvent, 
   syncTasks, 
-  syncEvents
+  syncEvents,
+  syncHabits
 } from './services/syncService';
 import type { LocalTask, LocalEvent } from './services/syncService';
 import { fetchGoogleTaskLists } from './services/googleApi';
@@ -18,6 +19,14 @@ import type { GoogleTaskList } from './services/googleApi';
 import { AuthPage } from './components/AuthPage';
 import { Dashboard } from './components/Dashboard';
 import { Loader2 } from 'lucide-react';
+import { 
+  addLocalHabit, 
+  updateLocalHabit, 
+  deleteLocalHabit, 
+  toggleHabitCompletion 
+} from './services/habitService';
+import type { Habit, HabitLog } from './services/habitService';
+
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -28,6 +37,8 @@ function App() {
   const [tasks, setTasks] = useState<LocalTask[]>([]);
   const [events, setEvents] = useState<LocalEvent[]>([]);
   const [taskLists, setTaskLists] = useState<GoogleTaskList[]>([]);
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habitLogs, setHabitLogs] = useState<{ [habitId: string]: { [dateStr: string]: HabitLog } }>({});
   const [activeListId, setActiveListId] = useState<string>('');
   
   // Sync State
@@ -51,6 +62,8 @@ function App() {
       setTasks([]);
       setEvents([]);
       setTaskLists([]);
+      setHabits([]);
+      setHabitLogs({});
       setActiveListId('');
       return;
     }
@@ -78,8 +91,56 @@ function App() {
         loadedEvents.push(docSnap.data() as LocalEvent);
       });
       setEvents(loadedEvents);
+      setDataLoading(false);
     }, (error) => {
       console.error("Firestore events subscription error:", error);
+    });
+
+    // Subscribe to Habits and their logs in Firestore
+    const habitsQuery = query(collection(db, 'users', user.uid, 'habits'));
+    const logsUnsubscribers = new Map<string, () => void>();
+
+    const unsubscribeHabits = onSnapshot(habitsQuery, (snapshot) => {
+      const loadedHabits: Habit[] = [];
+      snapshot.forEach((docSnap) => {
+        loadedHabits.push(docSnap.data() as Habit);
+      });
+      setHabits(loadedHabits);
+      setDataLoading(false);
+
+      // Setup / teardown listeners for each habit's logs
+      loadedHabits.forEach((habit) => {
+        if (!logsUnsubscribers.has(habit.id)) {
+          const logsQuery = query(collection(db, 'users', user.uid, 'habits', habit.id, 'logs'));
+          const unsubLogs = onSnapshot(logsQuery, (logsSnapshot) => {
+            const loadedLogs: { [dateStr: string]: HabitLog } = {};
+            logsSnapshot.forEach((logSnap) => {
+              loadedLogs[logSnap.id] = logSnap.data() as HabitLog;
+            });
+            setHabitLogs((prev) => ({
+              ...prev,
+              [habit.id]: loadedLogs
+            }));
+          });
+          logsUnsubscribers.set(habit.id, unsubLogs);
+        }
+      });
+
+      // Clean up unsubscribers for habits that were deleted
+      const habitIds = new Set(loadedHabits.map((h) => h.id));
+      for (const habitId of logsUnsubscribers.keys()) {
+        if (!habitIds.has(habitId)) {
+          logsUnsubscribers.get(habitId)?.();
+          logsUnsubscribers.delete(habitId);
+          setHabitLogs((prev) => {
+            const next = { ...prev };
+            delete next[habitId];
+            return next;
+          });
+        }
+      }
+    }, (error) => {
+      console.error("Firestore habits subscription error:", error);
     });
 
     // Run initial Google Sync
@@ -88,6 +149,8 @@ function App() {
     return () => {
       unsubscribeTasks();
       unsubscribeEvents();
+      unsubscribeHabits();
+      logsUnsubscribers.forEach((unsub) => unsub());
     };
   }, [user]);
 
@@ -106,10 +169,11 @@ function App() {
         setActiveListId(defaultList.id);
       }
 
-      // B. Sync tasks and events bidirectionally
+      // B. Sync tasks, events, and habits bidirectionally
       await Promise.all([
         syncTasks(userId),
-        syncEvents(userId)
+        syncEvents(userId),
+        syncHabits(userId)
       ]);
       
       setLastSynced(new Date());
@@ -207,6 +271,42 @@ function App() {
     }
   };
 
+  const handleAddHabit = async (habitData: Omit<Habit, 'id' | 'createdAt' | 'archived'>) => {
+    if (!user) return;
+    try {
+      await addLocalHabit(user.uid, habitData);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateHabit = async (habitId: string, habitData: Partial<Habit>) => {
+    if (!user) return;
+    try {
+      await updateLocalHabit(user.uid, habitId, habitData);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteHabit = async (habit: Habit) => {
+    if (!user) return;
+    try {
+      await deleteLocalHabit(user.uid, habit);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleToggleHabit = async (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => {
+    if (!user) return;
+    try {
+      await toggleHabitCompletion(user.uid, habit, dateStr, currentCompleted, timeSpent);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   // =========================================================================
   // Render States
   // =========================================================================
@@ -230,6 +330,8 @@ function App() {
       tasks={tasks}
       taskLists={taskLists}
       events={events}
+      habits={habits}
+      habitLogs={habitLogs}
       activeListId={activeListId}
       setActiveListId={setActiveListId}
       onAddTask={handleAddTask}
@@ -237,6 +339,10 @@ function App() {
       onDeleteTask={handleDeleteTask}
       onAddEvent={handleAddEvent}
       onDeleteEvent={handleDeleteEvent}
+      onAddHabit={handleAddHabit}
+      onUpdateHabit={handleUpdateHabit}
+      onDeleteHabit={handleDeleteHabit}
+      onToggleHabit={handleToggleHabit}
       isSyncing={isSyncing}
       lastSynced={lastSynced}
       syncError={syncError}
