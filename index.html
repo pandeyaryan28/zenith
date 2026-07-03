@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Zenith is a premium glassmorphic productivity dashboard featuring bidirectional Google Tasks and Google Calendar synchronization." />
+    <script>
+      (function() {
+        const theme = localStorage.getItem('zenith-theme') || 'dark';
+        const style = localStorage.getItem('zenith-style-mode') || 'glassmorphism';
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-style', style);
+      })();
+    </script>
     <title>Zenith — Productivity Sync Dashboard</title>
   </head>
   <body>

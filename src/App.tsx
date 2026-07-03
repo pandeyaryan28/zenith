@@ -49,6 +49,24 @@ function App() {
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
 
+  // Appearance State
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('zenith-theme') as 'light' | 'dark') || 'dark';
+  });
+  const [styleMode, setStyleMode] = useState<'glassmorphism' | 'neumorphism' | 'minimalist' | 'retro'>(() => {
+    return (localStorage.getItem('zenith-style-mode') as 'glassmorphism' | 'neumorphism' | 'minimalist' | 'retro') || 'glassmorphism';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('zenith-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-style', styleMode);
+    localStorage.setItem('zenith-style-mode', styleMode);
+  }, [styleMode]);
+
   // 1. Auth Subscription Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -377,6 +395,10 @@ function App() {
       onSyncTrigger={() => performSync(user.uid)}
       onSignOut={handleSignOut}
       loadingData={dataLoading}
+      theme={theme}
+      setTheme={setTheme}
+      styleMode={styleMode}
+      setStyleMode={setStyleMode}
     />
   );
 }

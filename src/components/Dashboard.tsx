@@ -12,7 +12,13 @@ import {
   Calendar as CalendarIcon,
   Flame,
   CheckCircle2,
-  Timer
+  Timer,
+  Sun,
+  Moon,
+  Sparkles,
+  Layers,
+  Square,
+  Terminal
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -47,6 +53,10 @@ interface DashboardProps {
   onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
   pomodoroSessions: PomodoroSession[];
   onSavePomodoroSession: (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => Promise<void>;
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
+  styleMode: 'glassmorphism' | 'neumorphism' | 'minimalist' | 'retro';
+  setStyleMode: (styleMode: 'glassmorphism' | 'neumorphism' | 'minimalist' | 'retro') => void;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -74,7 +84,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteHabit,
   onToggleHabit,
   pomodoroSessions,
-  onSavePomodoroSession
+  onSavePomodoroSession,
+  theme,
+  setTheme,
+  styleMode,
+  setStyleMode
 }) => {
   const [activeTab, setActiveTab] = useState<'tasks' | 'habits' | 'pomodoro'>('tasks');
   const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
@@ -207,11 +221,98 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Focused today</span>
                 </div>
               </div>
-            </div>
           </div>
 
-          {/* User Details & Sign Out */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+          {/* Appearance Section */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '1rem', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>APPEARANCE</div>
+            
+            {/* Theme Selector */}
+            <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.15)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', gap: '0.25rem' }}>
+              <button
+                onClick={() => setTheme('light')}
+                title="Light Theme"
+                style={{
+                  flex: 1,
+                  padding: '0.4rem 0.75rem',
+                  fontSize: '0.75rem',
+                  borderRadius: '6px',
+                  background: theme === 'light' ? 'var(--color-primary-glow)' : 'transparent',
+                  border: theme === 'light' ? '1px solid var(--border-active)' : '1px solid transparent',
+                  color: theme === 'light' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <Sun size={14} />
+                <span>Light</span>
+              </button>
+              <button
+                onClick={() => setTheme('dark')}
+                title="Dark Theme"
+                style={{
+                  flex: 1,
+                  padding: '0.4rem 0.75rem',
+                  fontSize: '0.75rem',
+                  borderRadius: '6px',
+                  background: theme === 'dark' ? 'var(--color-primary-glow)' : 'transparent',
+                  border: theme === 'dark' ? '1px solid var(--border-active)' : '1px solid transparent',
+                  color: theme === 'dark' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.35rem'
+                }}
+              >
+                <Moon size={14} />
+                <span>Dark</span>
+              </button>
+            </div>
+
+            {/* Style Selector Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              {[
+                { id: 'glassmorphism', label: 'Glass', icon: Sparkles },
+                { id: 'neumorphism', label: 'Neumorph', icon: Layers },
+                { id: 'minimalist', label: 'Minimal', icon: Square },
+                { id: 'retro', label: 'Terminal', icon: Terminal }
+              ].map((item) => {
+                const Icon = item.icon;
+                const isActive = styleMode === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setStyleMode(item.id as any)}
+                    title={`${item.label} Style`}
+                    style={{
+                      padding: '0.5rem',
+                      fontSize: '0.7rem',
+                      borderRadius: 'var(--radius-sm)',
+                      background: isActive ? 'var(--color-primary-glow)' : 'rgba(0, 0, 0, 0.1)',
+                      border: isActive ? '1px solid var(--border-active)' : '1px solid var(--border-color)',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem'
+                    }}
+                  >
+                    <Icon size={12} style={{ color: isActive ? 'var(--color-primary)' : 'inherit' }} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* User Details & Sign Out */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               {user.photoURL ? (
                 <img 
