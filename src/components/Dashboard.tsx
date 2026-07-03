@@ -11,12 +11,15 @@ import {
   CheckSquare, 
   Calendar as CalendarIcon,
   Flame,
-  CheckCircle2
+  CheckCircle2,
+  Timer
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
 import { calculateStreak } from '../services/habitService';
 import { useState } from 'react';
+import type { PomodoroSession } from '../services/pomodoroService';
+import { PomodoroBoard } from './PomodoroBoard';
 
 interface DashboardProps {
   user: User;
@@ -42,6 +45,8 @@ interface DashboardProps {
   onUpdateHabit: (habitId: string, habitData: Partial<Habit>) => Promise<void>;
   onDeleteHabit: (habit: Habit) => Promise<void>;
   onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
+  pomodoroSessions: PomodoroSession[];
+  onSavePomodoroSession: (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -67,9 +72,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onAddHabit,
   onUpdateHabit,
   onDeleteHabit,
-  onToggleHabit
+  onToggleHabit,
+  pomodoroSessions,
+  onSavePomodoroSession
 }) => {
-  const [activeTab, setActiveTab] = useState<'tasks' | 'habits'>('tasks');
+  const [activeTab, setActiveTab] = useState<'tasks' | 'habits' | 'pomodoro'>('tasks');
   const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
   const totalEventsCount = events.filter(e => !e.localDeleted).length;
 
@@ -101,6 +108,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const maxStreak = streakMetrics.length > 0 
     ? Math.max(...streakMetrics.map(m => m.currentStreak)) 
     : 0;
+
+  // Pomodoro statistics
+  const completedPomosToday = pomodoroSessions.filter(s => {
+    if (!s.completed || s.type !== 'work') return false;
+    const localSessionDateStr = getLocalDateStr(new Date(s.startTime));
+    return localSessionDateStr === todayLocalDateStr;
+  });
+  const focusMinutesToday = completedPomosToday.reduce((sum, s) => sum + s.durationMinutes, 0);
 
   return (
     <div className="page-container" style={{ minHeight: '100vh', overflow: 'hidden' }}>
@@ -182,6 +197,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontSize: '1rem', fontWeight: 600 }}>{completedHabitsTodayCount} / {activeHabitsToday.length}</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Habits completed</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.02)' }}>
+                <Timer size={16} style={{ color: 'var(--color-secondary)' }} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '1rem', fontWeight: 600 }}>{focusMinutesToday} mins</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Focused today</span>
                 </div>
               </div>
             </div>
@@ -281,6 +304,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
               >
                 Habits
               </button>
+              <button 
+                onClick={() => setActiveTab('pomodoro')}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  fontSize: '0.85rem',
+                  borderRadius: '6px',
+                  background: activeTab === 'pomodoro' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                  border: 'none',
+                  color: activeTab === 'pomodoro' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  boxShadow: activeTab === 'pomodoro' ? 'var(--shadow-sm)' : 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Pomodoro
+              </button>
             </div>
 
             {activeTab === 'tasks' ? (
@@ -294,7 +333,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onDeleteTask={onDeleteTask}
                 loading={loadingData}
               />
-            ) : (
+            ) : activeTab === 'habits' ? (
               <HabitsBoard
                 habits={habits}
                 habitLogs={habitLogs}
@@ -303,6 +342,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 onUpdateHabit={onUpdateHabit}
                 onDeleteHabit={onDeleteHabit}
                 onToggleHabit={onToggleHabit}
+              />
+            ) : (
+              <PomodoroBoard
+                tasks={tasks}
+                activeListId={activeListId}
+                pomodoroSessions={pomodoroSessions}
+                onSavePomodoroSession={onSavePomodoroSession}
               />
             )}
           </div>

@@ -26,6 +26,8 @@ import {
   toggleHabitCompletion 
 } from './services/habitService';
 import type { Habit, HabitLog } from './services/habitService';
+import { savePomodoroSession } from './services/pomodoroService';
+import type { PomodoroSession } from './services/pomodoroService';
 
 
 function App() {
@@ -39,6 +41,7 @@ function App() {
   const [taskLists, setTaskLists] = useState<GoogleTaskList[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitLogs, setHabitLogs] = useState<{ [habitId: string]: { [dateStr: string]: HabitLog } }>({});
+  const [pomodoroSessions, setPomodoroSessions] = useState<PomodoroSession[]>([]);
   const [activeListId, setActiveListId] = useState<string>('');
   
   // Sync State
@@ -64,6 +67,7 @@ function App() {
       setTaskLists([]);
       setHabits([]);
       setHabitLogs({});
+      setPomodoroSessions([]);
       setActiveListId('');
       return;
     }
@@ -143,6 +147,18 @@ function App() {
       console.error("Firestore habits subscription error:", error);
     });
 
+    // Subscribe to Pomodoro sessions in Firestore
+    const pomodoroQuery = query(collection(db, 'users', user.uid, 'pomodoroSessions'));
+    const unsubscribePomodoro = onSnapshot(pomodoroQuery, (snapshot) => {
+      const loadedSessions: PomodoroSession[] = [];
+      snapshot.forEach((docSnap) => {
+        loadedSessions.push(docSnap.data() as PomodoroSession);
+      });
+      setPomodoroSessions(loadedSessions);
+    }, (error) => {
+      console.error("Firestore pomodoro sessions subscription error:", error);
+    });
+
     // Run initial Google Sync
     performSync(user.uid);
 
@@ -150,6 +166,7 @@ function App() {
       unsubscribeTasks();
       unsubscribeEvents();
       unsubscribeHabits();
+      unsubscribePomodoro();
       logsUnsubscribers.forEach((unsub) => unsub());
     };
   }, [user]);
@@ -307,6 +324,15 @@ function App() {
     }
   };
 
+  const handleSavePomodoroSession = async (sessionData: Omit<PomodoroSession, 'id' | 'userId'>) => {
+    if (!user) return;
+    try {
+      await savePomodoroSession(user.uid, sessionData);
+    } catch (err) {
+      console.error("Failed to save Pomodoro session:", err);
+    }
+  };
+
   // =========================================================================
   // Render States
   // =========================================================================
@@ -332,6 +358,7 @@ function App() {
       events={events}
       habits={habits}
       habitLogs={habitLogs}
+      pomodoroSessions={pomodoroSessions}
       activeListId={activeListId}
       setActiveListId={setActiveListId}
       onAddTask={handleAddTask}
@@ -343,6 +370,7 @@ function App() {
       onUpdateHabit={handleUpdateHabit}
       onDeleteHabit={handleDeleteHabit}
       onToggleHabit={handleToggleHabit}
+      onSavePomodoroSession={handleSavePomodoroSession}
       isSyncing={isSyncing}
       lastSynced={lastSynced}
       syncError={syncError}
