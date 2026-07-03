@@ -444,6 +444,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               pomoTotalDuration={pomoTotalDuration}
               pomoTimeLeft={pomoTimeLeft}
               pomoSelectedTaskIds={pomoSelectedTaskIds}
+              setPomoSelectedTaskIds={setPomoSelectedTaskIds}
               startPausePomo={startPausePomo}
               resetPomo={resetPomo}
             />

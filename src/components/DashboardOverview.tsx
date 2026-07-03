@@ -15,7 +15,10 @@ import {
   Sparkles,
   ChevronRight,
   Coffee,
-  RotateCcw
+  RotateCcw,
+  Search,
+  Square,
+  FolderKanban
 } from 'lucide-react';
 
 interface DashboardOverviewProps {
@@ -35,6 +38,7 @@ interface DashboardOverviewProps {
   pomoTotalDuration: number;
   pomoTimeLeft: number;
   pomoSelectedTaskIds: string[];
+  setPomoSelectedTaskIds: React.Dispatch<React.SetStateAction<string[]>>;
   startPausePomo: () => void;
   resetPomo: (savePartialCallback?: (durationMin: number, startTime: string) => void) => void;
 }
@@ -63,10 +67,26 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   pomoTotalDuration,
   pomoTimeLeft,
   pomoSelectedTaskIds,
+  setPomoSelectedTaskIds,
   startPausePomo,
   resetPomo
 }) => {
   const [quote, setQuote] = useState(QUOTES[0]);
+  const [isTaskSelectorOpen, setIsTaskSelectorOpen] = useState(false);
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+
+  const activeTasks = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted);
+  const filteredTasks = activeTasks.filter(t => 
+    t.title.toLowerCase().includes(taskSearchQuery.toLowerCase())
+  );
+
+  const toggleTaskSelection = (taskId: string) => {
+    setPomoSelectedTaskIds((prev) => 
+      prev.includes(taskId) 
+        ? prev.filter(id => id !== taskId) 
+        : [...prev, taskId]
+    );
+  };
 
   useEffect(() => {
     const idx = Math.floor(Math.random() * QUOTES.length);
@@ -116,7 +136,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     : 0;
 
   const completedPomosToday = pomodoroSessions.filter(s => {
-    if (!s.completed || s.type !== 'work') return false;
+    if (s.type !== 'work') return false;
     const localSessionDateStr = getLocalDateStr(new Date(s.startTime));
     return localSessionDateStr === todayStr;
   });
@@ -386,79 +406,175 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             }}
           >
             
-            {/* Timer Clock & Controls */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.15)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em' }}>
-                  {pomoType === 'work' ? 'FOCUS TIME REMAINING' : pomoType === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
-                </span>
-                <span style={{ fontSize: '1.6rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', marginTop: '0.15rem', lineHeight: 1 }}>
-                  {Math.floor(pomoTimeLeft / 60)}:{String(pomoTimeLeft % 60).padStart(2, '0')}
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500, marginLeft: '0.35rem' }}>
-                    / {Math.round(pomoTotalDuration / 60)}m
-                  </span>
-                </span>
-              </div>
+            {/* 1. Circular Clock Progress Timer & Side Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', background: 'rgba(0,0,0,0.15)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
               
-              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                {pomoState !== 'idle' && (
-                  <button 
-                    onClick={() => resetPomo()}
-                    className="btn-secondary"
-                    style={{ padding: '0.4rem', borderRadius: '50%' }}
-                    title="Reset timer"
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                )}
-                
-                <button
-                  onClick={startPausePomo}
-                  className="btn-primary"
-                  style={{ 
-                    padding: '0.45rem 0.85rem', 
-                    fontSize: '0.75rem', 
-                    borderRadius: 'var(--radius-sm)',
-                    background: pomoState === 'running' ? 'rgba(255, 255, 255, 0.08)' : 'var(--grad-primary)',
-                    border: pomoState === 'running' ? '1px solid var(--border-color)' : 'none',
-                    fontWeight: 600
-                  }}
-                >
-                  {pomoState === 'running' ? 'Pause' : 'Start'}
-                </button>
+              {/* Circular SVG Timer */}
+              <div style={{ position: 'relative', width: '80px', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                 <svg width="80" height="80" viewBox="0 0 100 100" style={{ position: 'absolute' }}>
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="5" />
+                    <circle 
+                      cx="50" 
+                      cy="50" 
+                      r="42" 
+                      fill="none" 
+                      stroke={pomoType === 'work' ? 'var(--color-primary)' : pomoType === 'shortBreak' ? 'var(--color-secondary)' : 'var(--color-success)'} 
+                      strokeWidth="5" 
+                      strokeDasharray="264" 
+                      strokeDashoffset={264 - (pomoTimeLeft / pomoTotalDuration) * 264} 
+                      strokeLinecap="round" 
+                      transform="rotate(-90 50 50)"
+                      style={{ transition: 'stroke-dashoffset 0.1s linear' }}
+                    />
+                 </svg>
+                 <span style={{ fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)', zIndex: 1 }}>
+                   {Math.floor(pomoTimeLeft / 60)}:{String(pomoTimeLeft % 60).padStart(2, '0')}
+                 </span>
+              </div>
+
+              {/* Status and Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0.4rem', minWidth: 0 }}>
+                 <span style={{ fontSize: '0.65rem', color: pomoType === 'work' ? 'var(--color-primary)' : pomoType === 'shortBreak' ? 'var(--color-secondary)' : 'var(--color-success)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                   {pomoType === 'work' ? '💻 Focus Session' : pomoType === 'shortBreak' ? '☕ Short Break' : '☕ Long Break'}
+                 </span>
+                 <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                   Total: {Math.round(pomoTotalDuration / 60)} min
+                 </span>
+                 
+                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.15rem' }}>
+                    <button
+                      onClick={startPausePomo}
+                      className="btn-primary"
+                      style={{ 
+                        padding: '0.35rem 0.75rem', 
+                        fontSize: '0.7rem', 
+                        borderRadius: 'var(--radius-sm)',
+                        background: pomoState === 'running' ? 'rgba(255, 255, 255, 0.08)' : 'var(--grad-primary)',
+                        border: pomoState === 'running' ? '1px solid var(--border-color)' : 'none',
+                        fontWeight: 600
+                      }}
+                    >
+                      {pomoState === 'running' ? 'Pause' : 'Start'}
+                    </button>
+                    
+                    {pomoState !== 'idle' && (
+                      <button 
+                        onClick={() => resetPomo()}
+                        className="btn-secondary"
+                        style={{ padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)' }}
+                        title="Reset timer"
+                      >
+                        <RotateCcw size={12} />
+                      </button>
+                    )}
+                 </div>
               </div>
             </div>
 
-            {/* Target Tasks checklist */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Focus Targets</span>
+            {/* 2. Interactive Task Selector Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', position: 'relative' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Linked Target Tasks</span>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', maxHeight: '110px', paddingRight: '0.25rem' }} className="custom-scroll">
-                {pomoSelectedTaskIds.length === 0 ? (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '0.2rem' }}>
-                    No tasks linked. Go to Focus Station to select target tasks.
-                  </span>
-                ) : (
-                  tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(task => (
-                    <div 
-                      key={task.id}
-                      style={{ 
-                        fontSize: '0.75rem', 
-                        color: 'var(--text-primary)',
-                        padding: '0.35rem 0.5rem',
-                        background: 'rgba(255,255,255,0.01)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
+              <button
+                onClick={() => setIsTaskSelectorOpen(!isTaskSelectorOpen)}
+                className="btn-secondary"
+                style={{ width: '100%', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.45rem 0.65rem', background: 'rgba(0,0,0,0.15)' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <FolderKanban size={12} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />
+                  {pomoSelectedTaskIds.length === 0 ? 'Link tasks to focus...' : `${pomoSelectedTaskIds.length} task(s) linked`}
+                </span>
+                <span>▼</span>
+              </button>
+
+              {isTaskSelectorOpen && (
+                <div style={{ 
+                  position: 'absolute', 
+                  bottom: '100%', 
+                  left: 0, 
+                  width: '100%', 
+                  maxHeight: '150px', 
+                  background: 'rgba(15, 18, 30, 0.98)', 
+                  backdropFilter: 'blur(10px)', 
+                  border: '1px solid var(--border-color)', 
+                  borderRadius: 'var(--radius-sm)', 
+                  zIndex: 10, 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  marginBottom: '6px', 
+                  padding: '0.4rem' 
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.4rem', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', marginBottom: '0.4rem' }}>
+                    <Search size={11} style={{ opacity: 0.5 }} />
+                    <input 
+                      type="text" 
+                      placeholder="Search active tasks..." 
+                      value={taskSearchQuery} 
+                      onChange={(e) => setTaskSearchQuery(e.target.value)}
+                      style={{ border: 'none', background: 'transparent', fontSize: '0.7rem', width: '100%', height: 'auto', padding: '0.1rem 0', outline: 'none', color: 'var(--text-primary)' }}
+                    />
+                  </div>
+                  <div className="custom-scroll" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                    {filteredTasks.length === 0 ? (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.4rem' }}>No active tasks.</span>
+                    ) : (
+                      filteredTasks.map(task => {
+                        const isSelected = pomoSelectedTaskIds.includes(task.id);
+                        return (
+                          <button
+                            key={task.id}
+                            onClick={() => toggleTaskSelection(task.id)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem', borderRadius: '4px', background: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'transparent', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.7rem', textAlign: 'left', width: '100%', cursor: 'pointer', border: 'none' }}
+                          >
+                            {isSelected ? <CheckSquare size={10} /> : <Square size={10} />}
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Checklist of linked tasks */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', maxHeight: '75px', paddingRight: '0.25rem', flex: 1 }} className="custom-scroll">
+              {pomoSelectedTaskIds.length === 0 ? (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.2rem 0' }}>
+                  No tasks linked. Link above to track them.
+                </span>
+              ) : (
+                tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(task => (
+                  <div 
+                    key={task.id}
+                    style={{ 
+                      fontSize: '0.7rem', 
+                      color: 'var(--text-primary)',
+                      padding: '0.35rem 0.45rem',
+                      background: 'rgba(255,255,255,0.01)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85%' }}>
                       ✓ {task.title}
-                    </div>
-                  ))
-                )}
-              </div>
+                    </span>
+                    <button
+                      onClick={() => toggleTaskSelection(task.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.7rem', fontWeight: 'bold' }}
+                      title="Unlink task"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
             
           </div>

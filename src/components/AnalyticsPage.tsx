@@ -34,7 +34,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
   };
 
   // 1. Focus Timer Metrics
-  const workSessions = pomodoroSessions.filter(s => s.completed && s.type === 'work');
+  const workSessions = pomodoroSessions.filter(s => s.type === 'work');
   const totalFocusMinutes = workSessions.reduce((sum, s) => sum + s.durationMinutes, 0);
   const avgFocusMinutes = workSessions.length > 0 ? Math.round(totalFocusMinutes / workSessions.length) : 0;
 
@@ -65,7 +65,7 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
 
   const weeklyFocusData = last7Days.map(dateStr => {
     const daySessions = pomodoroSessions.filter(s => {
-      if (!s.completed || s.type !== 'work') return false;
+      if (s.type !== 'work') return false;
       return getLocalDateStr(new Date(s.startTime)) === dateStr;
     });
     const mins = daySessions.reduce((sum, s) => sum + s.durationMinutes, 0);
