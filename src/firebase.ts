@@ -5,7 +5,7 @@ import {
   signInWithPopup, 
   signOut 
 } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { initializeFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCDZzFuWs6XMDR0Gwsz4-1nHFe_wnFLIoE",
@@ -20,7 +20,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  ignoreUndefinedProperties: true
+});
 
 // Configure Google Auth Provider with Scopes for Tasks and Calendar
 export const googleProvider = new GoogleAuthProvider();
