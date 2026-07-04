@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
+import { EmailAuthProvider, linkWithCredential, updatePassword } from 'firebase/auth';
+import { auth } from '../firebase';
 import { 
   Sun, 
   Moon, 
@@ -14,7 +16,8 @@ import {
   Timer, 
   CheckCircle2, 
   AlertCircle,
-  Volume2
+  Volume2,
+  Key
 } from 'lucide-react';
 
 interface SettingsPageProps {
@@ -51,6 +54,47 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   const [shortMin, setShortMin] = useState(() => Number(localStorage.getItem('zenith-pomo-short') || '5'));
   const [longMin, setLongMin] = useState(() => Number(localStorage.getItem('zenith-pomo-long') || '15'));
   
+  // Obsidian Sync Password State
+  const [syncPassword, setSyncPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  const handleSetSyncPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!syncPassword || syncPassword.length < 6) {
+      setPasswordMessage({ text: 'Password must be at least 6 characters.', type: 'error' });
+      return;
+    }
+    setPasswordLoading(true);
+    setPasswordMessage(null);
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser || !currentUser.email) {
+        throw new Error("No authenticated email found.");
+      }
+      
+      const credential = EmailAuthProvider.credential(currentUser.email, syncPassword);
+      
+      try {
+        await linkWithCredential(currentUser, credential);
+        setPasswordMessage({ text: 'Sync password successfully set!', type: 'success' });
+      } catch (linkError: any) {
+        if (linkError.code === 'auth/provider-already-linked' || linkError.code === 'auth/credential-already-in-use') {
+          await updatePassword(currentUser, syncPassword);
+          setPasswordMessage({ text: 'Sync password successfully updated!', type: 'success' });
+        } else {
+          throw linkError;
+        }
+      }
+      setSyncPassword('');
+    } catch (err: any) {
+      console.error("Failed to set sync password:", err);
+      setPasswordMessage({ text: err.message || 'Failed to update sync password.', type: 'error' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   // Audio Feedback Setting
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem('zenith-sound-enabled') !== 'false';
@@ -415,6 +459,87 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
               </span>
             </div>
 
+          </div>
+        </section>
+
+        {/* =========================================================================
+           OBSIDIAN SYNC CONFIGURATION
+           ========================================================================= */}
+        <section className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Key size={18} style={{ color: 'var(--color-primary)' }} />
+              Obsidian Sync Credentials
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+              Set a sync password to authenticate your local Obsidian notes with the cloud database.
+            </p>
+          </div>
+
+          <hr style={{ border: '0', borderTop: '1px solid var(--border-color)' }} />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(0,0,0,0.15)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Sync Email:</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{user.email}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>User ID (UID):</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)', fontSize: '0.75rem' }}>{user.uid}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSetSyncPassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Set Sync Password</label>
+                <input
+                  type="password"
+                  placeholder="Enter secure sync password (min 6 chars)"
+                  value={syncPassword}
+                  onChange={(e) => setSyncPassword(e.target.value)}
+                  style={{
+                    padding: '0.6rem 0.8rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'rgba(0,0,0,0.2)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    width: '100%',
+                    maxWidth: '400px'
+                  }}
+                />
+              </div>
+
+              {passwordMessage && (
+                <div style={{ 
+                  fontSize: '0.8rem', 
+                  color: passwordMessage.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
+                }}>
+                  <AlertCircle size={14} />
+                  <span>{passwordMessage.text}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={passwordLoading}
+                className="btn-primary"
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  fontSize: '0.8rem',
+                  borderRadius: 'var(--radius-sm)',
+                  alignSelf: 'flex-start',
+                  marginTop: '0.25rem'
+                }}
+              >
+                {passwordLoading ? 'Saving...' : 'Set Sync Password'}
+              </button>
+            </form>
           </div>
         </section>
 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, getDoc } from 'firebase/firestore';
 import { auth, db, signOutUser, signInWithGoogle } from './firebase';
 import { 
   addLocalTask, 
@@ -18,6 +18,13 @@ import type { LocalTask, LocalEvent } from './services/syncService';
 import { fetchGoogleTaskLists } from './services/googleApi';
 import type { GoogleTaskList, GoogleTask, GoogleEvent } from './services/googleApi';
 import { AuthPage } from './components/AuthPage';
+import { 
+  saveLocalNote, 
+  deleteLocalNote, 
+  syncNoteTasksToBoard, 
+  updateNoteCheckboxInMarkdown 
+} from './services/noteService';
+import type { LocalNote } from './services/noteService';
 import { Dashboard } from './components/Dashboard';
 import { Loader2 } from 'lucide-react';
 import { 
@@ -39,6 +46,7 @@ function App() {
   // Data State
   const [tasks, setTasks] = useState<LocalTask[]>([]);
   const [events, setEvents] = useState<LocalEvent[]>([]);
+  const [notes, setNotes] = useState<LocalNote[]>([]);
   const [taskLists, setTaskLists] = useState<GoogleTaskList[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [habitLogs, setHabitLogs] = useState<{ [habitId: string]: { [dateStr: string]: HabitLog } }>({});
@@ -414,12 +422,25 @@ function App() {
       console.error("Firestore pomodoro sessions subscription error:", error);
     });
 
+    // Subscribe to Notes collection in Firestore
+    const notesQuery = query(collection(db, 'users', user.uid, 'notes'));
+    const unsubscribeNotes = onSnapshot(notesQuery, (snapshot) => {
+      const loadedNotes: LocalNote[] = [];
+      snapshot.forEach((docSnap) => {
+        loadedNotes.push(docSnap.data() as LocalNote);
+      });
+      setNotes(loadedNotes);
+    }, (error) => {
+      console.error("Firestore notes subscription error:", error);
+    });
+
     // Run initial Google Sync
     performSync(user.uid);
 
     return () => {
       unsubscribeTasks();
       unsubscribeEvents();
+      unsubscribeNotes();
       unsubscribeHabits();
       unsubscribePomodoro();
       logsUnsubscribers.forEach((unsub) => unsub());
@@ -495,6 +516,29 @@ function App() {
   // Optimistic UI Handlers
   // =========================================================================
 
+  const syncTaskCompletionToNote = async (userId: string, taskId: string, completed: boolean) => {
+    try {
+      const taskRef = doc(db, 'users', userId, 'tasks', taskId);
+      const taskSnap = await getDoc(taskRef);
+      if (!taskSnap.exists()) return;
+      const taskData = taskSnap.data();
+      
+      if (taskData.noteId) {
+        const noteRef = doc(db, 'users', userId, 'notes', taskData.noteId);
+        const noteSnap = await getDoc(noteRef);
+        if (!noteSnap.exists()) return;
+        const noteData = noteSnap.data() as LocalNote;
+        
+        const updatedContent = updateNoteCheckboxInMarkdown(noteData.content, taskData.title, completed);
+        if (updatedContent !== noteData.content) {
+          await saveLocalNote(userId, taskData.noteId, noteData.title, updatedContent);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync task toggle back to note:", err);
+    }
+  };
+
   const handleAddTask = async (title: string, notes?: string, due?: string) => {
     if (!user || !activeListId) return;
     try {
@@ -516,6 +560,8 @@ function App() {
       await updateLocalTask(user.uid, activeListId, taskId, {
         status: nextStatus
       });
+      // Sync task toggle back to the Obsidian note content
+      await syncTaskCompletionToNote(user.uid, taskId, nextStatus === 'completed');
     } catch (err) {
       console.error(err);
     }
@@ -557,6 +603,41 @@ function App() {
     if (!user || !activeListId) return;
     try {
       await updateLocalTask(user.uid, activeListId, taskId, taskData);
+      if (taskData.status) {
+        await syncTaskCompletionToNote(user.uid, taskId, taskData.status === 'completed');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddNote = async (noteId: string, title: string, content: string) => {
+    if (!user) return '';
+    try {
+      await saveLocalNote(user.uid, noteId, title, content);
+      return noteId;
+    } catch (err) {
+      console.error(err);
+      return '';
+    }
+  };
+
+  const handleUpdateNote = async (noteId: string, title: string, content: string) => {
+    if (!user) return;
+    try {
+      await saveLocalNote(user.uid, noteId, title, content);
+      if (activeListId) {
+        syncNoteTasksToBoard(user.uid, noteId, title, content, activeListId).catch(console.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!user) return;
+    try {
+      await deleteLocalNote(user.uid, noteId);
     } catch (err) {
       console.error(err);
     }
@@ -640,6 +721,7 @@ function App() {
       tasks={tasks}
       taskLists={taskLists}
       events={events}
+      notes={notes}
       habits={habits}
       habitLogs={habitLogs}
       pomodoroSessions={pomodoroSessions}
@@ -656,6 +738,9 @@ function App() {
       onUpdateHabit={handleUpdateHabit}
       onDeleteHabit={handleDeleteHabit}
       onToggleHabit={handleToggleHabit}
+      onAddNote={handleAddNote}
+      onUpdateNote={handleUpdateNote}
+      onDeleteNote={handleDeleteNote}
       isSyncing={isSyncing}
       lastSynced={lastSynced}
       syncError={syncError}

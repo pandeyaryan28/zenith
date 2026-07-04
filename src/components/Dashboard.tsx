@@ -18,7 +18,8 @@ import {
   Pause,
   AlertCircle,
   Sparkles,
-  FolderKanban
+  FolderKanban,
+  FileText
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -28,6 +29,8 @@ import { PomodoroBoard } from './PomodoroBoard';
 import { DashboardOverview } from './DashboardOverview';
 import { AnalyticsPage } from './AnalyticsPage';
 import { SettingsPage } from './SettingsPage';
+import { NotesBoard } from './NotesBoard';
+import type { LocalNote } from '../services/noteService';
 
 interface DashboardProps {
   user: User;
@@ -78,6 +81,10 @@ interface DashboardProps {
   handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
   handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
   onPomoSettingsChange: () => void;
+  notes: LocalNote[];
+  onAddNote: (noteId: string, title: string, content: string) => Promise<string>;
+  onUpdateNote: (noteId: string, title: string, content: string) => Promise<void>;
+  onDeleteNote: (noteId: string) => Promise<void>;
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -126,9 +133,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
   toggleAmbientSound,
   handlePresetSelect,
   handleSavePartialSession,
-  onPomoSettingsChange
+  onPomoSettingsChange,
+  notes,
+  onAddNote,
+  onUpdateNote,
+  onDeleteNote
 }) => {
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'settings'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'notes' | 'settings'>('dashboard');
 
   const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
 
@@ -173,6 +184,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, color: 'var(--color-primary)' },
     { id: 'calendar', label: 'Calendar', icon: CalendarIcon, color: 'var(--color-secondary)' },
     { id: 'tasks', label: 'Tasks Board', icon: FolderKanban, color: 'var(--color-primary)' },
+    { id: 'notes', label: 'Notes Sync', icon: FileText, color: 'var(--color-success)' },
     { id: 'habits', label: 'Habits Board', icon: CheckCircle2, color: 'var(--color-warning)' },
     { id: 'pomodoro', label: 'Focus Station', icon: Timer, color: 'var(--color-danger)' },
     { id: 'analytics', label: 'Visual Analytics', icon: TrendingUp, color: 'var(--color-success)' },
@@ -520,6 +532,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 toggleAmbientSound={toggleAmbientSound}
                 handlePresetSelect={handlePresetSelect}
                 handleSavePartialSession={handleSavePartialSession}
+              />
+            ) : activePage === 'notes' ? (
+              <NotesBoard
+                notes={notes}
+                onAddNote={onAddNote}
+                onUpdateNote={onUpdateNote}
+                onDeleteNote={onDeleteNote}
               />
             ) : activePage === 'analytics' ? (
               <AnalyticsPage
