@@ -27,6 +27,7 @@ interface SettingsPageProps {
   lastSynced: Date | null;
   syncError: string | null;
   onSyncTrigger: () => void;
+  onReconnectGoogle?: () => void;
   onSignOut: () => void;
   onPomoSettingsChange?: () => void;
 }
@@ -41,6 +42,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
   lastSynced,
   syncError,
   onSyncTrigger,
+  onReconnectGoogle,
   onSignOut,
   onPomoSettingsChange
 }) => {
@@ -381,15 +383,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                 </div>
               </div>
 
-              <button 
-                onClick={onSyncTrigger}
-                disabled={isSyncing}
-                className="btn-primary" 
-                style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <RefreshCw size={14} className={isSyncing ? 'spin-slow' : ''} />
-                <span>Sync Now</span>
-              </button>
+              {syncError && (syncError.toLowerCase().includes('expired') || syncError.toLowerCase().includes('auth')) && onReconnectGoogle ? (
+                <button 
+                  onClick={onReconnectGoogle}
+                  disabled={isSyncing}
+                  className="btn-primary" 
+                  style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <Sparkles size={14} />
+                  <span>Reconnect</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={onSyncTrigger}
+                  disabled={isSyncing}
+                  className="btn-primary" 
+                  style={{ padding: '0.5rem 1rem', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                >
+                  <RefreshCw size={14} className={isSyncing ? 'spin-slow' : ''} />
+                  <span>Sync Now</span>
+                </button>
+              )}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>

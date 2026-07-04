@@ -42,6 +42,7 @@ interface DashboardProps {
   lastSynced: Date | null;
   syncError: string | null;
   onSyncTrigger: () => void;
+  onReconnectGoogle?: () => void;
   onSignOut: () => void;
   loadingData: boolean;
   habits: Habit[];
@@ -90,6 +91,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   lastSynced,
   syncError,
   onSyncTrigger,
+  onReconnectGoogle,
   onSignOut,
   loadingData,
   habits,
@@ -499,6 +501,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               lastSynced={lastSynced}
               syncError={syncError}
               onSyncTrigger={onSyncTrigger}
+              onReconnectGoogle={onReconnectGoogle}
               onSignOut={onSignOut}
               onPomoSettingsChange={onPomoSettingsChange}
             />

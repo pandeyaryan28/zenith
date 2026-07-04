@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, onSnapshot, query } from 'firebase/firestore';
-import { auth, db, signOutUser } from './firebase';
+import { auth, db, signOutUser, signInWithGoogle } from './firebase';
 import { 
   addLocalTask, 
   updateLocalTask, 
@@ -449,12 +449,30 @@ function App() {
       
       setLastSynced(new Date());
     } catch (err: any) {
-      console.error("Bidirectional Sync failed:", err);
       if (err.message === 'AUTH_REQUIRED' || err.message === 'TOKEN_EXPIRED') {
-        setSyncError("Google OAuth session expired. Please sign out and sign in again.");
+        console.warn("Bidirectional Sync paused: Google OAuth session expired.");
+        setSyncError("Google OAuth session expired. Please reconnect your Google account.");
       } else {
+        console.error("Bidirectional Sync failed:", err);
         setSyncError("Sync failed. Check your internet connection.");
       }
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleReconnectGoogle = async () => {
+    if (!user) return;
+    setIsSyncing(true);
+    setSyncError(null);
+    try {
+      const refreshedUser = await signInWithGoogle();
+      if (refreshedUser) {
+        await performSync(refreshedUser.uid);
+      }
+    } catch (err: any) {
+      console.error("Failed to reconnect Google account:", err);
+      setSyncError("Failed to reconnect Google account. Please try again.");
     } finally {
       setIsSyncing(false);
     }
@@ -621,6 +639,7 @@ function App() {
       lastSynced={lastSynced}
       syncError={syncError}
       onSyncTrigger={() => performSync(user.uid)}
+      onReconnectGoogle={handleReconnectGoogle}
       onSignOut={handleSignOut}
       loadingData={dataLoading}
       theme={theme}
