@@ -1,18 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { LocalNote } from '../services/noteService';
-import { parseTasksFromNote } from '../services/noteService';
 import { 
   Search, 
   Plus, 
   Trash2, 
   Eye, 
   Edit3, 
-  Tag, 
-  CheckSquare, 
-  Folder, 
-  Calendar,
-  Clock,
-  Sliders,
+  CheckSquare,
   Sparkles,
   Loader,
   Info,
@@ -696,7 +690,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onToggleCh
 };
 
 // =========================================================================
-// MAIN NOTES BOARD COMPONENT
+// MAIN MINIMALIST NOTES BOARD COMPONENT
 // =========================================================================
 export const NotesBoard: React.FC<NotesBoardProps> = ({
   notes,
@@ -706,8 +700,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
 }) => {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editorMode, setEditorMode] = useState<'edit' | 'preview' | 'split'>('split');
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const [isSaving, setIsSaving] = useState(false);
 
   // Get active note
@@ -750,44 +743,34 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return () => clearTimeout(timer);
   }, [tempTitle, tempContent, activeNoteId, onUpdateNote, activeNote]);
 
-  // Extract tags from all notes
-  const allTags = useMemo(() => {
-    const tagsSet = new Set<string>();
-    notes.forEach(note => {
-      note.tags?.forEach(tag => tagsSet.add(tag));
-    });
-    return Array.from(tagsSet);
-  }, [notes]);
-
-  // Filter notes based on search and tag selection
+  // Filter notes based on search term only (minimalist)
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
-      const matchesSearch = 
-        note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        note.content.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesTag = selectedTag ? note.tags?.includes(selectedTag) : true;
-      
-      return matchesSearch && matchesTag;
+      const query = searchTerm.toLowerCase();
+      return (
+        note.title.toLowerCase().includes(query) || 
+        note.content.toLowerCase().includes(query)
+      );
     });
-  }, [notes, searchTerm, selectedTag]);
+  }, [notes, searchTerm]);
 
   // Create new note handler
   const handleCreateNote = async () => {
     const title = 'Untitled Note';
-    const content = '# Untitled Note\n\nWrite your thoughts here...\n\n- [ ] Make a difference today @due(' + new Date().toISOString().split('T')[0] + ')';
+    const content = '# Untitled Note\n\nWrite your thoughts here...\n\n- [ ] Todo item\n- [ ] Call checklist';
     const noteId = encodeURIComponent(`Notes/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
     
     setIsSaving(true);
     const newId = await onAddNote(noteId, title, content);
     setActiveNoteId(newId);
+    setEditorMode('edit');
     setIsSaving(false);
   };
 
   // Delete note handler
   const handleDeleteNote = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this note? This will delete the local file.')) {
+    if (window.confirm('Are you sure you want to delete this note?')) {
       await onDeleteNote(id);
       if (activeNoteId === id) {
         const remaining = notes.filter(n => n.id !== id);
@@ -812,24 +795,6 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     }
   };
 
-  // Extracted tasks of the active note
-  const extractedTasks = useMemo(() => {
-    if (!tempContent) return [];
-    return parseTasksFromNote(tempContent);
-  }, [tempContent]);
-
-  // Task Completion calculation
-  const taskProgress = useMemo(() => {
-    if (extractedTasks.length === 0) return { total: 0, completed: 0, percent: 0 };
-    const completed = extractedTasks.filter(t => t.completed).length;
-    const total = extractedTasks.length;
-    return {
-      total,
-      completed,
-      percent: Math.round((completed / total) * 100)
-    };
-  }, [extractedTasks]);
-
   // Helper to decode note path for display
   const getNoteFolder = (id: string) => {
     const decoded = decodeURIComponent(id);
@@ -837,199 +802,138 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     if (parts.length > 1) {
       return parts.slice(0, -1).join(' / ');
     }
-    return 'Vault Root';
+    return '';
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.25rem', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '0', height: '100%', overflow: 'hidden' }}>
       
       {/* =========================================================================
-         SIDEBAR: Notes list & filter tags (Redesigned)
+         SIDEBAR: Notes list (Redesigned - Distraction Free)
          ========================================================================= */}
       <div 
-        className="glass-panel" 
         style={{ 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '1.25rem', 
+          gap: '1rem', 
           height: '100%', 
           overflow: 'hidden', 
-          padding: '1.25rem', 
-          background: 'rgba(10, 13, 22, 0.55)',
-          boxShadow: 'var(--shadow-lg)'
+          padding: '1.5rem 1rem 1rem 1rem', 
+          background: 'rgba(5, 7, 10, 0.4)',
+          borderRight: '1px solid var(--border-color)',
         }}
       >
         
-        {/* Search & Add Note */}
-        <div style={{ display: 'flex', gap: '0.625rem', alignItems: 'center' }}>
+        {/* Search & Add Note in a single line */}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <div 
             className="notes-search-focus"
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              background: 'rgba(0, 0, 0, 0.4)', 
+              background: 'rgba(255, 255, 255, 0.02)', 
               border: '1px solid var(--border-color)', 
               borderRadius: 'var(--radius-sm)', 
-              padding: '0.55rem 0.85rem', 
+              padding: '0.45rem 0.75rem', 
               flex: 1, 
               minWidth: 0,
               transition: 'all var(--transition-fast)'
             }}
           >
-            <Search size={14} style={{ color: 'var(--text-muted)', marginRight: '0.5rem', flexShrink: 0 }} />
+            <Search size={12} style={{ color: 'var(--text-muted)', marginRight: '0.4rem', flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Search notes..."
+              placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.8rem', width: '100%', padding: 0 }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0 }}
             />
           </div>
           <button 
             onClick={handleCreateNote}
-            className="btn-primary hover-scale" 
             style={{ 
-              padding: '0.55rem', 
+              padding: '0.45rem', 
               borderRadius: 'var(--radius-sm)', 
               display: 'flex', 
               justifyContent: 'center', 
               alignItems: 'center', 
-              width: '38px', 
-              height: '38px',
+              width: '32px', 
+              height: '32px',
+              border: '1px solid var(--border-color)',
+              background: 'rgba(255,255,255,0.02)',
+              cursor: 'pointer',
               flexShrink: 0
             }}
-            title="Create New Note"
+            className="hover-scale"
+            title="New Note"
           >
-            <Plus size={18} />
+            <Plus size={14} style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
 
-        {/* Tag Filters */}
-        {allTags.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em' }}>FILTER BY TAG</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-              <button
-                onClick={() => setSelectedTag(null)}
-                style={{
-                  padding: '0.25rem 0.65rem',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.7rem',
-                  border: '1px solid ' + (selectedTag === null ? 'var(--color-primary)' : 'var(--border-color)'),
-                  background: selectedTag === null ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)',
-                  color: selectedTag === null ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontWeight: selectedTag === null ? 600 : 400,
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                All
-              </button>
-              {allTags.map(tag => (
-                <button
-                  key={tag}
-                  onClick={() => setSelectedTag(tag)}
-                  style={{
-                    padding: '0.25rem 0.65rem',
-                    borderRadius: 'var(--radius-full)',
-                    fontSize: '0.7rem',
-                    border: '1px solid ' + (selectedTag === tag ? 'var(--color-primary)' : 'var(--border-color)'),
-                    background: selectedTag === tag ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)',
-                    color: selectedTag === tag ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    fontWeight: selectedTag === tag ? 600 : 400,
-                    transition: 'all var(--transition-fast)'
-                  }}
-                >
-                  <Tag size={10} />
-                  <span>{tag}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Notes list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', overflowY: 'auto', flex: 1, paddingRight: '0.1rem' }} className="custom-scroll">
-          <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.1em', marginBottom: '0.15rem' }}>MY VAULT</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', flex: 1, paddingRight: '0.1rem', marginTop: '0.5rem' }} className="custom-scroll">
           {filteredNotes.length === 0 ? (
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
-              No notes found.
+              No notes
             </div>
           ) : (
             filteredNotes.map(note => {
               const isActive = note.id === activeNoteId;
               const dateObj = new Date(note.updatedAt);
-              const snippet = note.content
-                .replace(/#\w+/g, '') 
-                .replace(/[#*`[\]\-]/g, '') 
-                .replace(/@due\(\d{4}-\d{2}-\d{2}\)/g, '')
-                .trim()
-                .slice(0, 65) + (note.content.length > 65 ? '...' : '');
+              const folderStr = getNoteFolder(note.id);
               
               return (
                 <div
                   key={note.id}
                   onClick={() => setActiveNoteId(note.id)}
                   style={{
-                    padding: '0.9rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: isActive ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.01)',
-                    border: '1px solid ' + (isActive ? 'var(--border-active)' : 'var(--border-color)'),
+                    padding: '0.65rem 0.85rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: isActive ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
+                    border: '1px solid ' + (isActive ? 'var(--border-color)' : 'transparent'),
                     cursor: 'pointer',
                     transition: 'all var(--transition-fast)',
-                    position: 'relative'
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.15rem'
                   }}
-                  className={isActive ? 'note-card-selected' : 'glass-card'}
+                  className="hover-scale"
                 >
-                  {isActive && (
-                    <div style={{
-                      position: 'absolute',
-                      left: '0',
-                      top: '20%',
-                      bottom: '20%',
-                      width: '4px',
-                      background: 'var(--grad-primary)',
-                      borderRadius: '0 4px 4px 0'
-                    }} />
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ 
+                      fontSize: '0.8rem', 
+                      fontWeight: isActive ? 600 : 400, 
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)', 
+                      whiteSpace: 'nowrap', 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      flex: 1 
+                    }}>
                       {note.title || 'Untitled Note'}
                     </span>
                     <button
                       onClick={(e) => handleDeleteNote(note.id, e)}
-                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', opacity: isActive ? 0.9 : 0.4, padding: '0.1rem', transition: 'all var(--transition-fast)', color: 'var(--color-danger)' }}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        cursor: 'pointer', 
+                        opacity: isActive ? 0.6 : 0, 
+                        padding: '0.1rem', 
+                        transition: 'opacity var(--transition-fast)', 
+                        color: 'var(--color-danger)' 
+                      }}
                       className="hover-scale"
-                      title="Delete note"
+                      title="Delete"
                     >
-                      <Trash2 size={12} />
+                      <Trash2 size={11} />
                     </button>
                   </div>
                   
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                    <Folder size={10} style={{ color: 'var(--color-secondary)' }} />
-                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{getNoteFolder(note.id)}</span>
-                  </div>
-
-                  <p style={{ fontSize: '0.725rem', color: isActive ? 'rgba(255, 255, 255, 0.7)' : 'var(--text-secondary)', margin: 0, lineHeight: '1.4', lineBreak: 'anywhere' }}>
-                    {snippet || <span style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Empty note</span>}
-                  </p>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.85rem', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <Clock size={10} />
-                      {dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
-                    </span>
-                    {note.tags && note.tags.length > 0 && (
-                      <span style={{ background: 'var(--color-primary-glow)', padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-full)', border: '1px solid rgba(99,102,241,0.2)', color: 'var(--color-primary)', fontSize: '0.6rem', fontWeight: 600 }}>
-                        #{note.tags[0]}
-                      </span>
-                    )}
+                  {/* Folder & Date info row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                    <span>{folderStr ? `${folderStr} • ` : ''}{dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                   </div>
                 </div>
               );
@@ -1040,275 +944,127 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
       </div>
 
       {/* =========================================================================
-         MAIN EDITOR: Title, content edit, markdown rendering (Redesigned)
+         MAIN EDITOR: Centered Distraction-Free Reading/Writing Canvas
          ========================================================================= */}
       <div 
-        className="glass-panel" 
         style={{ 
           display: 'flex', 
           flexDirection: 'column', 
           height: '100%', 
           overflow: 'hidden', 
-          padding: '1.5rem', 
-          background: 'rgba(10, 13, 22, 0.3)',
-          boxShadow: 'var(--shadow-lg)'
+          background: 'transparent'
         }}
       >
         {activeNote ? (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             
-            {/* Header: Title edit & layout switcher */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem', flexShrink: 0, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.85rem' }}>
-              
-              {/* Title input */}
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <input
-                    type="text"
-                    value={tempTitle}
-                    onChange={(e) => setTempTitle(e.target.value)}
-                    style={{
-                      fontSize: '1.5rem',
-                      fontWeight: 800,
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      width: '100%',
-                      padding: '0.1rem 0',
-                      fontFamily: 'var(--font-display)',
-                      borderBottom: '1px solid transparent',
-                      transition: 'all var(--transition-fast)'
-                    }}
-                    onFocus={(e) => e.target.style.borderBottom = '1px solid var(--border-active)'}
-                    onBlur={(e) => e.target.style.borderBottom = '1px solid transparent'}
-                    placeholder="Note Title"
-                  />
-                  {isSaving && (
-                    <Loader size={16} className="spin-slow" style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-                  )}
-                </div>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.25rem' }}>
-                  <Folder size={10} style={{ color: 'var(--color-secondary)' }} />
-                  <span>{getNoteFolder(activeNote.id)} / {decodeURIComponent(activeNote.id).split('/').pop()}</span>
-                </span>
+            {/* Header controls (Extremely simplified) */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem 0.5rem 2rem', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {isSaving && (
+                  <Loader size={12} className="spin-slow" style={{ color: 'var(--color-primary)' }} />
+                )}
               </div>
 
-              {/* Layout Switch Mode (Sliding pill toggle) */}
-              <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.45)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexShrink: 0 }}>
-                {(['edit', 'preview', 'split'] as const).map(mode => {
-                  const isActive = editorMode === mode;
-                  return (
-                    <button
-                      key={mode}
-                      onClick={() => setEditorMode(mode)}
-                      style={{
-                        padding: '0.45rem 0.95rem',
-                        fontSize: '0.75rem',
-                        borderRadius: '6px',
-                        background: isActive ? 'var(--color-primary-glow)' : 'transparent',
-                        border: isActive ? '1px solid var(--border-active)' : '1px solid transparent',
-                        color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        fontWeight: isActive ? 600 : 500,
-                        transition: 'all var(--transition-fast)'
-                      }}
-                    >
-                      {mode === 'edit' && <Edit3 size={12} />}
-                      {mode === 'preview' && <Eye size={12} />}
-                      {mode === 'split' && <Sliders size={12} />}
-                      <span className="hide-mobile" style={{ textTransform: 'capitalize' }}>{mode}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
+              {/* Single click Edit / Preview toggle */}
+              <button 
+                onClick={() => setEditorMode(editorMode === 'edit' ? 'preview' : 'edit')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 500,
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                  background: 'rgba(255,255,255,0.02)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)'
+                }}
+              >
+                {editorMode === 'edit' ? <Eye size={12} /> : <Edit3 size={12} />}
+                <span>{editorMode === 'edit' ? 'Preview' : 'Edit'}</span>
+              </button>
             </div>
 
-            {/* Split Panel: Workspace Content & Synced tasks sidebar */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr ' + (extractedTasks.length > 0 ? '260px' : '0px'), gap: '1.25rem', flex: 1, minHeight: 0 }}>
-              
-              {/* Workspace Content */}
-              <div style={{ display: 'flex', height: '100%', minHeight: 0, gap: '1.25rem', flex: 1 }}>
-                {(editorMode === 'edit' || editorMode === 'split') && (
-                  <textarea
-                    value={tempContent}
-                    onChange={(e) => setTempContent(e.target.value)}
-                    style={{
-                      flex: 1,
-                      height: '100%',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '1.25rem',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'SFMono-Regular, Consolas, Monaco, monospace',
-                      fontSize: '0.875rem',
-                      lineHeight: '1.65',
-                      outline: 'none',
-                      resize: 'none',
-                      tabSize: 4
-                    }}
-                    placeholder="Write markdown here..."
-                  />
-                )}
-                {(editorMode === 'preview' || editorMode === 'split') && (
-                  <div
-                    style={{
-                      flex: 1,
-                      height: '100%',
-                      overflowY: 'auto',
-                      padding: '1.25rem 1.5rem',
-                      background: 'rgba(255, 255, 255, 0.01)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                    }}
-                    className="custom-scroll"
-                  >
-                    <MarkdownRenderer content={tempContent} onToggleCheckbox={handleToggleCheckbox} />
-                  </div>
-                )}
-              </div>
-
-              {/* Side Drawer: Synced Note Checklists Progress Tracker */}
-              {extractedTasks.length > 0 && (
-                <div 
-                  className="glass-card custom-scroll animate-slide-in" 
-                  style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: '1.15rem', 
-                    padding: '1.15rem', 
-                    height: '100%', 
-                    overflowY: 'auto', 
-                    border: '1px solid var(--border-color)', 
-                    background: 'rgba(10, 13, 22, 0.55)',
-                    boxShadow: 'var(--shadow-md)'
+            {/* Centered Workspace Area */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 0' }} className="custom-scroll">
+              <div style={{ maxWidth: '680px', margin: '0 auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                
+                {/* Sleek, borderless note title */}
+                <input
+                  type="text"
+                  value={tempTitle}
+                  onChange={(e) => setTempTitle(e.target.value)}
+                  style={{
+                    fontSize: '2rem',
+                    fontWeight: 700,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    width: '100%',
+                    paddingBottom: '1rem',
+                    marginBottom: '1.5rem',
+                    fontFamily: 'var(--font-display)',
+                    borderBottom: '1px solid var(--border-color)',
+                    letterSpacing: '-0.02em'
                   }}
-                >
-                  {/* Local Checklist Progress Bar */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(255,255,255,0.01)', padding: '0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.05em' }}>NOTE CHECKLIST</span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-secondary)' }}>{taskProgress.percent}%</span>
-                    </div>
-                    <div style={{ height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div 
-                        style={{ 
-                          width: `${taskProgress.percent}%`, 
-                          height: '100%', 
-                          background: 'linear-gradient(90deg, var(--color-primary) 0%, var(--color-secondary) 100%)', 
-                          borderRadius: '3px', 
-                          transition: 'width var(--transition-normal) ease-out',
-                          boxShadow: '0 0 8px var(--color-secondary)'
-                        }} 
-                      />
-                    </div>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                      {taskProgress.completed} of {taskProgress.total} tasks completed
-                    </span>
-                  </div>
+                  placeholder="Note Title"
+                />
 
-                  <span style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '0.35rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    <CheckSquare size={12} style={{ color: 'var(--color-secondary)' }} />
-                    TASKS IN NOTE ({extractedTasks.length})
-                  </span>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', flex: 1, overflowY: 'auto' }} className="custom-scroll">
-                    {extractedTasks.map((t, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => handleToggleCheckbox(t.lineIndex)}
-                        style={{
-                          padding: '0.65rem 0.85rem',
-                          background: t.completed ? 'rgba(16, 185, 129, 0.03)' : 'rgba(255, 255, 255, 0.01)',
-                          border: '1px solid ' + (t.completed ? 'rgba(16, 185, 129, 0.15)' : 'var(--border-color)'),
-                          borderRadius: 'var(--radius-sm)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.3rem',
-                          cursor: 'pointer',
-                          transition: 'all var(--transition-fast)'
-                        }}
-                        className="hover-scale"
-                      >
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={t.completed} 
-                            readOnly 
-                            style={{ 
-                              marginTop: '0.15rem', 
-                              width: '13px', 
-                              height: '13px', 
-                              accentColor: 'var(--color-success)',
-                              cursor: 'pointer'
-                            }} 
-                          />
-                          <span style={{ 
-                            fontSize: '0.75rem', 
-                            color: t.completed ? 'var(--text-secondary)' : 'var(--text-primary)', 
-                            fontWeight: 500, 
-                            textDecoration: t.completed ? 'line-through' : 'none', 
-                            wordBreak: 'break-word', 
-                            opacity: t.completed ? 0.65 : 1 
-                          }}>
-                            {t.text}
-                          </span>
-                        </div>
-                        {t.dueDate && (
-                          <span style={{ 
-                            fontSize: '0.6rem', 
-                            color: t.completed ? 'var(--text-muted)' : 'var(--color-secondary)', 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '0.2rem', 
-                            marginLeft: '1.15rem',
-                            background: t.completed ? 'transparent' : 'var(--color-secondary-glow)',
-                            padding: '0.05rem 0.35rem',
-                            borderRadius: '4px',
-                            width: 'fit-content',
-                            border: t.completed ? 'none' : '1px solid rgba(6,182,212,0.2)'
-                          }}>
-                            <Calendar size={8} />
-                            {t.dueDate}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', flexShrink: 0, lineHeight: '1.4' }}>
-                    * Checkboxes are rendered local to the note. Checking items edits note markdown.
-                  </div>
+                {/* Content Input or Preview */}
+                <div style={{ flex: 1, minHeight: '300px' }}>
+                  {editorMode === 'edit' ? (
+                    <textarea
+                      value={tempContent}
+                      onChange={(e) => setTempContent(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        resize: 'none',
+                        fontSize: '0.95rem',
+                        lineHeight: '1.8',
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-body)',
+                        padding: 0
+                      }}
+                      placeholder="Start writing..."
+                    />
+                  ) : (
+                    <MarkdownRenderer content={tempContent} onToggleCheckbox={handleToggleCheckbox} />
+                  )}
                 </div>
-              )}
 
+              </div>
             </div>
 
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1.25rem' }}>
+          /* Redesigned Empty State UI (Minimalist) */
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem' }}>
             <div 
               className="pulse-glow"
               style={{ 
                 display: 'inline-flex', 
-                padding: '1.25rem', 
+                padding: '1rem', 
                 borderRadius: 'var(--radius-md)', 
                 background: 'var(--color-primary-glow)', 
-                border: '1px solid rgba(99, 102, 241, 0.15)', 
+                border: '1px solid rgba(99, 102, 241, 0.12)', 
                 color: 'var(--color-primary)' 
               }}
             >
-              <Sparkles size={36} className="spin-slow" />
+              <Sparkles size={28} className="spin-slow" />
             </div>
-            <div style={{ textAlign: 'center', maxWidth: '340px' }}>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-display)', letterSpacing: '-0.01em' }}>Zenith Note Vault</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.4rem', lineHeight: '1.5' }}>
-                Access and manage your Obsidian-compatible markdown notes. Select an existing note or click "+" to build a new one.
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Zenith Notes</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                Select a note or click "+" to begin.
               </p>
             </div>
           </div>
