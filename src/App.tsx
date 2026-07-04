@@ -8,6 +8,7 @@ import {
   updateLocalTask, 
   deleteLocalTask, 
   addLocalEvent, 
+  updateLocalEvent,
   deleteLocalEvent, 
   syncTasks, 
   syncEvents,
@@ -15,7 +16,7 @@ import {
 } from './services/syncService';
 import type { LocalTask, LocalEvent } from './services/syncService';
 import { fetchGoogleTaskLists } from './services/googleApi';
-import type { GoogleTaskList } from './services/googleApi';
+import type { GoogleTaskList, GoogleTask, GoogleEvent } from './services/googleApi';
 import { AuthPage } from './components/AuthPage';
 import { Dashboard } from './components/Dashboard';
 import { Loader2 } from 'lucide-react';
@@ -552,6 +553,24 @@ function App() {
     }
   };
 
+  const handleUpdateTask = async (taskId: string, taskData: Partial<GoogleTask>) => {
+    if (!user || !activeListId) return;
+    try {
+      await updateLocalTask(user.uid, activeListId, taskId, taskData);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateEvent = async (eventId: string, eventData: Partial<GoogleEvent>) => {
+    if (!user) return;
+    try {
+      await updateLocalEvent(user.uid, eventId, eventData);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOutUser();
@@ -629,7 +648,9 @@ function App() {
       onAddTask={handleAddTask}
       onToggleTask={handleToggleTask}
       onDeleteTask={handleDeleteTask}
+      onUpdateTask={handleUpdateTask}
       onAddEvent={handleAddEvent}
+      onUpdateEvent={handleUpdateEvent}
       onDeleteEvent={handleDeleteEvent}
       onAddHabit={handleAddHabit}
       onUpdateHabit={handleUpdateHabit}

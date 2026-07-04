@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { LocalTask, LocalEvent } from '../services/syncService';
-import type { GoogleTaskList } from '../services/googleApi';
+import type { GoogleTaskList, GoogleTask, GoogleEvent } from '../services/googleApi';
 import { CalendarView } from './CalendarView';
 import { TaskBoard } from './TaskBoard';
 import { 
@@ -17,7 +17,8 @@ import {
   Play,
   Pause,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  FolderKanban
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -37,8 +38,10 @@ interface DashboardProps {
   setActiveListId: (id: string) => void;
   onAddTask: (title: string, notes?: string, due?: string) => Promise<void>;
   onToggleTask: (taskId: string, currentStatus: 'needsAction' | 'completed') => Promise<void>;
+  onUpdateTask: (taskId: string, taskData: Partial<GoogleTask>) => Promise<void>;
   onDeleteTask: (taskId: string) => Promise<void>;
   onAddEvent: (summary: string, startStr: string, endStr: string, description?: string) => Promise<void>;
+  onUpdateEvent: (eventId: string, eventData: Partial<GoogleEvent>) => Promise<void>;
   onDeleteEvent: (eventId: string) => Promise<void>;
   isSyncing: boolean;
   lastSynced: Date | null;
@@ -86,8 +89,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
   setActiveListId,
   onAddTask,
   onToggleTask,
+  onUpdateTask,
   onDeleteTask,
   onAddEvent,
+  onUpdateEvent,
   onDeleteEvent,
   isSyncing,
   lastSynced,
@@ -123,7 +128,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   handleSavePartialSession,
   onPomoSettingsChange
 }) => {
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'habits' | 'pomodoro' | 'analytics' | 'settings'>('dashboard');
+  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'settings'>('dashboard');
 
   const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
 
@@ -166,7 +171,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   const navItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, color: 'var(--color-primary)' },
-    { id: 'calendar', label: 'Schedule & Tasks', icon: CalendarIcon, color: 'var(--color-secondary)' },
+    { id: 'calendar', label: 'Calendar', icon: CalendarIcon, color: 'var(--color-secondary)' },
+    { id: 'tasks', label: 'Tasks Board', icon: FolderKanban, color: 'var(--color-primary)' },
     { id: 'habits', label: 'Habits Board', icon: CheckCircle2, color: 'var(--color-warning)' },
     { id: 'pomodoro', label: 'Focus Station', icon: Timer, color: 'var(--color-danger)' },
     { id: 'analytics', label: 'Visual Analytics', icon: TrendingUp, color: 'var(--color-success)' },
@@ -445,35 +451,24 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
           <div style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
             {activePage === 'calendar' ? (
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '7fr 4fr',
-                gap: '1.5rem',
-                height: '100%',
-                overflow: 'hidden'
-              }}>
-                {/* Calendar Side */}
-                <div style={{ height: '100%', overflow: 'hidden' }}>
-                  <CalendarView
-                    events={events}
-                    onAddEvent={onAddEvent}
-                    onDeleteEvent={onDeleteEvent}
-                  />
-                </div>
-                {/* Tasks Side */}
-                <div style={{ height: '100%', overflow: 'hidden' }}>
-                  <TaskBoard
-                    tasks={tasks}
-                    taskLists={taskLists}
-                    activeListId={activeListId}
-                    setActiveListId={setActiveListId}
-                    onAddTask={onAddTask}
-                    onToggleTask={onToggleTask}
-                    onDeleteTask={onDeleteTask}
-                    loading={loadingData}
-                  />
-                </div>
-              </div>
+              <CalendarView
+                events={events}
+                onAddEvent={onAddEvent}
+                onUpdateEvent={onUpdateEvent}
+                onDeleteEvent={onDeleteEvent}
+              />
+            ) : activePage === 'tasks' ? (
+              <TaskBoard
+                tasks={tasks}
+                taskLists={taskLists}
+                activeListId={activeListId}
+                setActiveListId={setActiveListId}
+                onAddTask={onAddTask}
+                onToggleTask={onToggleTask}
+                onUpdateTask={onUpdateTask}
+                onDeleteTask={onDeleteTask}
+                loading={loadingData}
+              />
             ) : activePage === 'dashboard' ? (
               <DashboardOverview
                 user={user}

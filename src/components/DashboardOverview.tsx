@@ -30,7 +30,7 @@ interface DashboardOverviewProps {
   pomodoroSessions: PomodoroSession[];
   activeListId: string;
   onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number) => Promise<void>;
-  onNavigate: (page: 'dashboard' | 'calendar' | 'habits' | 'pomodoro' | 'analytics' | 'settings') => void;
+  onNavigate: (page: 'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'settings') => void;
   
   // Lifted Pomodoro props
   pomoType: 'work' | 'shortBreak' | 'longBreak';
@@ -182,7 +182,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       {/* 2. Overview Metrics Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
         
-        <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => onNavigate('calendar')}>
+        <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} onClick={() => onNavigate('tasks')}>
           <div style={{ padding: '0.65rem', borderRadius: '0.5rem', background: 'rgba(99, 102, 241, 0.1)', color: 'var(--color-primary)' }}>
             <CheckSquare size={20} />
           </div>
