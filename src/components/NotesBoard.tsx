@@ -481,71 +481,51 @@ const TableRenderer: React.FC<{
 const CalloutRenderer: React.FC<{ type: string; title: string; children: React.ReactNode }> = ({ type, title, children }) => {
   const typeLower = type.toLowerCase();
   
-  let borderColor = 'var(--color-primary)';
-  let bgColor = 'var(--color-primary-glow)';
+  let varName = 'note';
   let icon = <Info size={16} />;
-  let titleColor = 'var(--text-primary)';
 
   if (['note', 'info'].includes(typeLower)) {
-    borderColor = '#3b82f6';
-    bgColor = 'rgba(59, 130, 246, 0.08)';
-    icon = <Info size={16} style={{ color: '#3b82f6' }} />;
-    titleColor = '#3b82f6';
+    varName = 'note';
+    icon = <Info size={16} style={{ color: 'var(--co-note-text)' }} />;
   } else if (['todo'].includes(typeLower)) {
-    borderColor = '#6366f1';
-    bgColor = 'rgba(99, 102, 241, 0.08)';
-    icon = <CheckSquare size={16} style={{ color: '#6366f1' }} />;
-    titleColor = '#6366f1';
+    varName = 'todo';
+    icon = <CheckSquare size={16} style={{ color: 'var(--co-todo-text)' }} />;
   } else if (['tip', 'hint'].includes(typeLower)) {
-    borderColor = '#06b6d4';
-    bgColor = 'rgba(6, 182, 212, 0.08)';
-    icon = <Sparkles size={16} style={{ color: '#06b6d4' }} />;
-    titleColor = '#06b6d4';
+    varName = 'tip';
+    icon = <Sparkles size={16} style={{ color: 'var(--co-tip-text)' }} />;
   } else if (['important'].includes(typeLower)) {
-    borderColor = '#14b8a6';
-    bgColor = 'rgba(20, 184, 166, 0.08)';
-    icon = <Info size={16} style={{ color: '#14b8a6' }} />;
-    titleColor = '#14b8a6';
+    varName = 'tip';
+    icon = <Info size={16} style={{ color: 'var(--co-tip-text)' }} />;
   } else if (['warning', 'caution', 'attention'].includes(typeLower)) {
-    borderColor = '#f59e0b';
-    bgColor = 'rgba(245, 158, 11, 0.08)';
-    icon = <AlertTriangle size={16} style={{ color: '#f59e0b' }} />;
-    titleColor = '#f59e0b';
+    varName = 'warning';
+    icon = <AlertTriangle size={16} style={{ color: 'var(--co-warning-text)' }} />;
   } else if (['danger', 'error', 'bug', 'failure'].includes(typeLower)) {
-    borderColor = '#ef4444';
-    bgColor = 'rgba(239, 68, 68, 0.08)';
-    icon = <XCircle size={16} style={{ color: '#ef4444' }} />;
-    titleColor = '#ef4444';
+    varName = 'danger';
+    icon = <XCircle size={16} style={{ color: 'var(--co-danger-text)' }} />;
   } else if (['success', 'done', 'check'].includes(typeLower)) {
-    borderColor = '#10b981';
-    bgColor = 'rgba(16, 185, 129, 0.08)';
-    icon = <CheckCircle size={16} style={{ color: '#10b981' }} />;
-    titleColor = '#10b981';
+    varName = 'success';
+    icon = <CheckCircle size={16} style={{ color: 'var(--co-success-text)' }} />;
   } else if (['question', 'help', 'faq'].includes(typeLower)) {
-    borderColor = '#8b5cf6';
-    bgColor = 'rgba(139, 92, 246, 0.08)';
-    icon = <HelpCircle size={16} style={{ color: '#8b5cf6' }} />;
-    titleColor = '#8b5cf6';
-  } else if (['quote', 'cite'].includes(typeLower)) {
-    borderColor = '#6b7280';
-    bgColor = 'rgba(107, 114, 128, 0.08)';
-    icon = <Quote size={16} style={{ color: '#6b7280' }} />;
-    titleColor = '#6b7280';
+    varName = 'question';
+    icon = <HelpCircle size={16} style={{ color: 'var(--co-question-text)' }} />;
+  } else {
+    varName = 'note';
+    icon = <Info size={16} style={{ color: 'var(--co-note-text)' }} />;
   }
 
   return (
     <div style={{
       margin: '1.25rem 0',
       padding: '0.9rem 1.2rem',
-      borderLeft: `4px solid ${borderColor}`,
-      background: bgColor,
+      borderLeft: `4px solid var(--co-${varName}-border)`,
+      background: `var(--co-${varName}-bg)`,
       borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
       display: 'flex',
       flexDirection: 'column',
       gap: '0.4rem',
       boxShadow: 'var(--shadow-sm)'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.875rem', color: titleColor, textTransform: 'capitalize' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.875rem', color: `var(--co-${varName}-text)`, textTransform: 'capitalize' }}>
         {icon}
         <span>{title}</span>
       </div>
@@ -976,86 +956,86 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
          ========================================================================= */}
       <div className={`notes-sidebar ${!showSidebar ? 'collapsed' : ''}`}>
         
-        {/* Search bar & Add Note */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem 1rem 0.5rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            <div 
-              className="notes-search-focus"
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                background: 'var(--bg-base)', 
-                border: '1px solid var(--border-color)', 
-                borderRadius: 'var(--radius-sm)', 
-                padding: '0 0.65rem', 
-                flex: 1, 
-                height: '34px',
-                transition: 'all var(--transition-fast)',
-                position: 'relative'
-              }}
-            >
-              <Search size={13} style={{ color: 'var(--text-muted)', marginRight: '0.4rem', flexShrink: 0 }} />
-              <input
-                type="text"
-                placeholder="Search notes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0, height: '100%' }}
-              />
-              {searchTerm && (
-                <button 
-                  onClick={() => setSearchTerm('')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                >
-                  <X size={12} />
-                </button>
-              )}
-            </div>
-            
-            <button 
-              onClick={handleCreateNote}
-              style={{ 
-                padding: 0, 
-                borderRadius: 'var(--radius-sm)', 
-                display: 'flex', 
-                justifyContent: 'center', 
-                alignItems: 'center', 
-                width: '34px', 
-                height: '34px',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-base)',
-                cursor: 'pointer',
-                flexShrink: 0,
-                transition: 'all var(--transition-fast)'
-              }}
-              className="hover-scale"
-              title="New Note"
-            >
-              <Plus size={14} style={{ color: 'var(--text-secondary)' }} />
-            </button>
-          </div>
+        {/* Sidebar Header: "Notes" & Plus button */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 1.25rem 0.5rem 1.25rem' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Notes</h2>
+          <button 
+            onClick={handleCreateNote}
+            style={{ 
+              padding: 0, 
+              borderRadius: 'var(--radius-sm)', 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              width: '28px', 
+              height: '28px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-base)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)'
+            }}
+            className="hover-scale"
+            title="New Note"
+          >
+            <Plus size={14} style={{ color: 'var(--text-secondary)' }} />
+          </button>
+        </div>
 
-          {/* Quick Filters: Sort & Tag Clear */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-            <span style={{ fontWeight: 500 }}>{sortedNotes.length} notes</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {/* Search bar row */}
+        <div style={{ padding: '0 1.25rem 0.5rem 1.25rem' }}>
+          <div 
+            className="notes-search-focus"
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              background: 'var(--bg-base)', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: 'var(--radius-sm)', 
+              padding: '0 0.65rem', 
+              height: '34px',
+              transition: 'all var(--transition-fast)',
+              position: 'relative'
+            }}
+          >
+            <Search size={13} style={{ color: 'var(--text-muted)', marginRight: '0.4rem', flexShrink: 0 }} />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0, height: '100%' }}
+            />
+            {searchTerm && (
               <button 
-                onClick={() => setSortBy(sortBy === 'updated' ? 'title' : 'updated')} 
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem' }}
-                title={sortBy === 'updated' ? 'Sorted by: Recent' : 'Sorted by: A-Z'}
+                onClick={() => setSearchTerm('')} 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
               >
-                <ArrowUpDown size={10} />
-                <span>{sortBy === 'updated' ? 'Recent' : 'A-Z'}</span>
+                <X size={12} />
               </button>
-              {selectedTag && (
-                <button 
-                  onClick={() => setSelectedTag(null)} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--color-secondary)', cursor: 'pointer', fontWeight: 600 }}
-                >
-                  Clear filter
-                </button>
-              )}
-            </div>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Filters: Sort & Tag Clear */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem', color: 'var(--text-muted)', padding: '0.25rem 1.25rem 0.5rem 1.25rem', borderBottom: '1px solid var(--border-color)' }}>
+          <span style={{ fontWeight: 500 }}>{sortedNotes.length} notes</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button 
+              onClick={() => setSortBy(sortBy === 'updated' ? 'title' : 'updated')} 
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem' }}
+              title={sortBy === 'updated' ? 'Sorted by: Recent' : 'Sorted by: A-Z'}
+            >
+              <ArrowUpDown size={10} />
+              <span>{sortBy === 'updated' ? 'Recent' : 'A-Z'}</span>
+            </button>
+            {selectedTag && (
+              <button 
+                onClick={() => setSelectedTag(null)} 
+                style={{ background: 'transparent', border: 'none', color: 'var(--color-secondary)', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Clear filter
+              </button>
+            )}
           </div>
         </div>
 
@@ -1065,7 +1045,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
             display: 'flex', 
             gap: '0.35rem', 
             overflowX: 'auto', 
-            padding: '0.5rem 1rem', 
+            padding: '0.5rem 1.25rem', 
             borderBottom: '1px solid var(--border-color)', 
             whiteSpace: 'nowrap'
           }} className="custom-scroll">
@@ -1095,7 +1075,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
         )}
 
         {/* Notes list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', flex: 1, padding: '0.5rem' }} className="custom-scroll">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', flex: 1, padding: '0.5rem 0.75rem' }} className="custom-scroll">
           {sortedNotes.length === 0 ? (
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
               No notes found
@@ -1111,20 +1091,14 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                 <div
                   key={note.id}
                   onClick={() => setActiveNoteId(note.id)}
+                  className={`note-card ${isActive ? 'active' : ''} hover-scale`}
                   style={{
-                    padding: '0.85rem 1rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: isActive ? 'var(--bg-surface-hover)' : 'transparent',
-                    border: '1px solid ' + (isActive ? 'var(--border-active)' : 'transparent'),
-                    cursor: 'pointer',
-                    transition: 'all var(--transition-fast)',
-                    position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.25rem',
+                    position: 'relative',
                     overflow: 'hidden'
                   }}
-                  className="hover-scale group"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ 

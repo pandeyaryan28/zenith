@@ -1027,14 +1027,6 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   color: var(--text-primary) !important;
 }
 
-/* Dynamic glow effect for selected notes card */
-.note-card-selected {
-  position: relative;
-  background: var(--bg-surface-hover) !important;
-  border-color: var(--border-active) !important;
-  box-shadow: var(--shadow-md), 0 0 15px rgba(99, 102, 241, 0.1) !important;
-}
-
 /* Input Focus Ring glow for Notes Search */
 .notes-search-focus:focus-within {
   border-color: var(--color-primary) !important;
@@ -1060,6 +1052,198 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
   transform: translateY(-0.5px);
+}
+
+/* =========================================================================
+   Obsidian-Style Redesign Variables & Style Mode Overrides
+   ========================================================================= */
+
+/* Callout CSS Variables - Default (Dark) */
+:root {
+  --co-note-border: #3b82f6;
+  --co-note-bg: rgba(59, 130, 246, 0.06);
+  --co-note-text: #60a5fa;
+
+  --co-todo-border: #6366f1;
+  --co-todo-bg: rgba(99, 102, 241, 0.06);
+  --co-todo-text: #818cf8;
+
+  --co-tip-border: #06b6d4;
+  --co-tip-bg: rgba(6, 182, 212, 0.06);
+  --co-tip-text: #22d3ee;
+
+  --co-warning-border: #f59e0b;
+  --co-warning-bg: rgba(245, 158, 11, 0.06);
+  --co-warning-text: #fbbf24;
+
+  --co-danger-border: #ef4444;
+  --co-danger-bg: rgba(239, 68, 68, 0.06);
+  --co-danger-text: #f87171;
+
+  --co-success-border: #10b981;
+  --co-success-bg: rgba(16, 185, 129, 0.06);
+  --co-success-text: #34d399;
+
+  --co-question-border: #8b5cf6;
+  --co-question-bg: rgba(139, 92, 246, 0.06);
+  --co-question-text: #a78bfa;
+}
+
+/* Callout CSS Variables - Light Theme Overrides (High Legibility Contrast) */
+html[data-theme="light"] {
+  --co-note-border: #2563eb;
+  --co-note-bg: rgba(37, 99, 235, 0.04);
+  --co-note-text: #1d4ed8;
+
+  --co-todo-border: #4f46e5;
+  --co-todo-bg: rgba(79, 70, 229, 0.04);
+  --co-todo-text: #4338ca;
+
+  --co-tip-border: #0891b2;
+  --co-tip-bg: rgba(8, 145, 178, 0.04);
+  --co-tip-text: #0e7490;
+
+  --co-warning-border: #d97706;
+  --co-warning-bg: rgba(217, 119, 6, 0.04);
+  --co-warning-text: #92400e;
+
+  --co-danger-border: #dc2626;
+  --co-danger-bg: rgba(220, 38, 38, 0.04);
+  --co-danger-text: #991b1b;
+
+  --co-success-border: #059669;
+  --co-success-bg: rgba(5, 150, 105, 0.04);
+  --co-success-text: #065f46;
+
+  --co-question-border: #7c3aed;
+  --co-question-bg: rgba(124, 58, 237, 0.04);
+  --co-question-text: #5b21b6;
+}
+
+/* Redesigned Note Card container styling (CSS controlled) */
+.note-card {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.note-card:hover {
+  background: var(--bg-surface-hover);
+  border-color: var(--border-color);
+}
+
+.note-card.active {
+  background: var(--bg-surface-hover) !important;
+  border-color: var(--border-active) !important;
+  border-left: 3px solid var(--color-primary) !important;
+  box-shadow: var(--shadow-sm), 0 0 12px var(--color-primary-glow) !important;
+}
+
+/* Card overrides: Neumorphism style overrides */
+html[data-style="neumorphism"] .note-card {
+  margin: 0.25rem 0.5rem;
+  border: none !important;
+  border-left: none !important;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+html[data-style="neumorphism"] .note-card:hover {
+  box-shadow: var(--shadow-md);
+  background: var(--bg-surface-hover);
+}
+
+html[data-style="neumorphism"] .note-card.active {
+  box-shadow: var(--nm-shadow-inset) !important;
+  background: transparent !important;
+  border: 1px solid var(--border-active) !important;
+}
+
+/* Card overrides: Minimalist style overrides */
+html[data-style="minimalist"] .note-card {
+  border-radius: 0px !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+html[data-style="minimalist"] .note-card:hover {
+  background: var(--bg-surface-hover);
+}
+
+html[data-style="minimalist"] .note-card.active {
+  background: var(--color-primary) !important;
+  border-bottom: 1px solid var(--color-primary) !important;
+}
+
+html[data-style="minimalist"] .note-card.active * {
+  color: var(--bg-base) !important;
+}
+
+/* Card overrides: Retro Terminal style overrides */
+html[data-style="retro"] .note-card {
+  border-radius: 0px !important;
+  border: 1px dashed var(--border-color) !important;
+  margin-bottom: 0.35rem;
+}
+
+html[data-style="retro"] .note-card:hover {
+  border-style: solid !important;
+  background: rgba(0, 255, 0, 0.04);
+}
+
+html[data-style="retro"] .note-card.active {
+  border-style: solid !important;
+  border-color: var(--color-primary) !important;
+  background: var(--color-primary-glow) !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+
+/* Optimized Document Sheet Container styling */
+.notes-doc-sheet {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 3rem 2.5rem;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: all var(--transition-normal);
+}
+
+html[data-style="neumorphism"] .notes-doc-sheet {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-lg);
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-style="minimalist"] .notes-doc-sheet {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+  border-radius: 0px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-style="retro"] .notes-doc-sheet {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  border-radius: 0px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 
