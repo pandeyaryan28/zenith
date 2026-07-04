@@ -15,7 +15,9 @@ import {
   TrendingUp,
   LayoutDashboard,
   Play,
-  Pause
+  Pause,
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -398,114 +400,157 @@ export const Dashboard: React.FC<DashboardProps> = ({
           height: '100vh',
           maxHeight: '100vh',
           overflow: 'hidden',
-          zIndex: 1
+          zIndex: 1,
+          display: 'flex',
+          flexDirection: 'column'
         }}>
-          {activePage === 'calendar' ? (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '7fr 4fr',
-              gap: '1.5rem',
-              height: '100%',
-              overflow: 'hidden'
+          {syncError && (syncError.toLowerCase().includes('expired') || syncError.toLowerCase().includes('auth')) && onReconnectGoogle && (
+            <div className="glass-panel animate-slide-in" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.75rem 1.25rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              marginBottom: '1rem',
+              gap: '1rem',
+              boxShadow: 'var(--shadow-sm)',
+              flexShrink: 0
             }}>
-              {/* Calendar Side */}
-              <div style={{ height: '100%', overflow: 'hidden' }}>
-                <CalendarView
-                  events={events}
-                  onAddEvent={onAddEvent}
-                  onDeleteEvent={onDeleteEvent}
-                />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+                <AlertCircle size={16} style={{ color: 'var(--color-danger)', flexShrink: 0 }} />
+                <span style={{ fontSize: '0.825rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Google OAuth session expired. Synchronization is paused.
+                </span>
               </div>
-              {/* Tasks Side */}
-              <div style={{ height: '100%', overflow: 'hidden' }}>
-                <TaskBoard
-                  tasks={tasks}
-                  taskLists={taskLists}
-                  activeListId={activeListId}
-                  setActiveListId={setActiveListId}
-                  onAddTask={onAddTask}
-                  onToggleTask={onToggleTask}
-                  onDeleteTask={onDeleteTask}
-                  loading={loadingData}
-                />
-              </div>
+              <button 
+                onClick={onReconnectGoogle}
+                className="btn-primary"
+                style={{ 
+                  padding: '0.4rem 1rem', 
+                  fontSize: '0.75rem', 
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Sparkles size={12} />
+                <span>Reconnect</span>
+              </button>
             </div>
-          ) : activePage === 'dashboard' ? (
-            <DashboardOverview
-              user={user}
-              tasks={tasks}
-              events={events}
-              habits={habits}
-              habitLogs={habitLogs}
-              pomodoroSessions={pomodoroSessions}
-              activeListId={activeListId}
-              onToggleHabit={onToggleHabit}
-              onNavigate={setActivePage}
-              pomoType={pomoType}
-              pomoState={pomoState}
-              pomoTotalDuration={pomoTotalDuration}
-              pomoTimeLeft={pomoTimeLeft}
-              pomoSelectedTaskIds={pomoSelectedTaskIds}
-              setPomoSelectedTaskIds={setPomoSelectedTaskIds}
-              startPausePomo={startPausePomo}
-              resetPomo={resetPomo}
-            />
-          ) : activePage === 'habits' ? (
-            <HabitsBoard
-              habits={habits}
-              habitLogs={habitLogs}
-              taskLists={taskLists}
-              onAddHabit={onAddHabit}
-              onUpdateHabit={onUpdateHabit}
-              onDeleteHabit={onDeleteHabit}
-              onToggleHabit={onToggleHabit}
-            />
-          ) : activePage === 'pomodoro' ? (
-            <PomodoroBoard
-              tasks={tasks}
-              activeListId={activeListId}
-              pomodoroSessions={pomodoroSessions}
-              userId={user.uid}
-              onToggleTask={onToggleTask}
-              pomoType={pomoType}
-              pomoState={pomoState}
-              pomoTotalDuration={pomoTotalDuration}
-              pomoTimeLeft={pomoTimeLeft}
-              pomoSelectedTaskIds={pomoSelectedTaskIds}
-              setPomoSelectedTaskIds={setPomoSelectedTaskIds}
-              activeSoundId={activeSoundId}
-              startPausePomo={startPausePomo}
-              resetPomo={resetPomo}
-              skipPomo={skipPomo}
-              adjustPomoDuration={adjustPomoDuration}
-              toggleAmbientSound={toggleAmbientSound}
-              handlePresetSelect={handlePresetSelect}
-              handleSavePartialSession={handleSavePartialSession}
-            />
-          ) : activePage === 'analytics' ? (
-            <AnalyticsPage
-              tasks={tasks}
-              habits={habits}
-              habitLogs={habitLogs}
-              pomodoroSessions={pomodoroSessions}
-              activeListId={activeListId}
-            />
-          ) : (
-            <SettingsPage
-              user={user}
-              theme={theme}
-              setTheme={setTheme}
-              styleMode={styleMode}
-              setStyleMode={setStyleMode}
-              isSyncing={isSyncing}
-              lastSynced={lastSynced}
-              syncError={syncError}
-              onSyncTrigger={onSyncTrigger}
-              onReconnectGoogle={onReconnectGoogle}
-              onSignOut={onSignOut}
-              onPomoSettingsChange={onPomoSettingsChange}
-            />
           )}
+
+          <div style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+            {activePage === 'calendar' ? (
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '7fr 4fr',
+                gap: '1.5rem',
+                height: '100%',
+                overflow: 'hidden'
+              }}>
+                {/* Calendar Side */}
+                <div style={{ height: '100%', overflow: 'hidden' }}>
+                  <CalendarView
+                    events={events}
+                    onAddEvent={onAddEvent}
+                    onDeleteEvent={onDeleteEvent}
+                  />
+                </div>
+                {/* Tasks Side */}
+                <div style={{ height: '100%', overflow: 'hidden' }}>
+                  <TaskBoard
+                    tasks={tasks}
+                    taskLists={taskLists}
+                    activeListId={activeListId}
+                    setActiveListId={setActiveListId}
+                    onAddTask={onAddTask}
+                    onToggleTask={onToggleTask}
+                    onDeleteTask={onDeleteTask}
+                    loading={loadingData}
+                  />
+                </div>
+              </div>
+            ) : activePage === 'dashboard' ? (
+              <DashboardOverview
+                user={user}
+                tasks={tasks}
+                events={events}
+                habits={habits}
+                habitLogs={habitLogs}
+                pomodoroSessions={pomodoroSessions}
+                activeListId={activeListId}
+                onToggleHabit={onToggleHabit}
+                onNavigate={setActivePage}
+                pomoType={pomoType}
+                pomoState={pomoState}
+                pomoTotalDuration={pomoTotalDuration}
+                pomoTimeLeft={pomoTimeLeft}
+                pomoSelectedTaskIds={pomoSelectedTaskIds}
+                setPomoSelectedTaskIds={setPomoSelectedTaskIds}
+                startPausePomo={startPausePomo}
+                resetPomo={resetPomo}
+              />
+            ) : activePage === 'habits' ? (
+              <HabitsBoard
+                habits={habits}
+                habitLogs={habitLogs}
+                taskLists={taskLists}
+                onAddHabit={onAddHabit}
+                onUpdateHabit={onUpdateHabit}
+                onDeleteHabit={onDeleteHabit}
+                onToggleHabit={onToggleHabit}
+              />
+            ) : activePage === 'pomodoro' ? (
+              <PomodoroBoard
+                tasks={tasks}
+                activeListId={activeListId}
+                pomodoroSessions={pomodoroSessions}
+                userId={user.uid}
+                onToggleTask={onToggleTask}
+                pomoType={pomoType}
+                pomoState={pomoState}
+                pomoTotalDuration={pomoTotalDuration}
+                pomoTimeLeft={pomoTimeLeft}
+                pomoSelectedTaskIds={pomoSelectedTaskIds}
+                setPomoSelectedTaskIds={setPomoSelectedTaskIds}
+                activeSoundId={activeSoundId}
+                startPausePomo={startPausePomo}
+                resetPomo={resetPomo}
+                skipPomo={skipPomo}
+                adjustPomoDuration={adjustPomoDuration}
+                toggleAmbientSound={toggleAmbientSound}
+                handlePresetSelect={handlePresetSelect}
+                handleSavePartialSession={handleSavePartialSession}
+              />
+            ) : activePage === 'analytics' ? (
+              <AnalyticsPage
+                tasks={tasks}
+                habits={habits}
+                habitLogs={habitLogs}
+                pomodoroSessions={pomodoroSessions}
+                activeListId={activeListId}
+              />
+            ) : (
+              <SettingsPage
+                user={user}
+                theme={theme}
+                setTheme={setTheme}
+                styleMode={styleMode}
+                setStyleMode={setStyleMode}
+                isSyncing={isSyncing}
+                lastSynced={lastSynced}
+                syncError={syncError}
+                onSyncTrigger={onSyncTrigger}
+                onReconnectGoogle={onReconnectGoogle}
+                onSignOut={onSignOut}
+                onPomoSettingsChange={onPomoSettingsChange}
+              />
+            )}
+          </div>
         </main>
 
       </div>
