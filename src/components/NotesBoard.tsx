@@ -1,12 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { LocalNote } from '../services/noteService';
 import { 
   Search, 
   Plus, 
   Trash2, 
-  Eye, 
-  Edit3, 
-  CheckSquare,
   Sparkles,
   Loader,
   Info,
@@ -16,7 +13,23 @@ import {
   Quote,
   Copy,
   Check,
-  CheckCircle
+  CheckCircle,
+  PanelLeftClose,
+  PanelLeft,
+  BookOpen,
+  Edit3,
+  Bold,
+  Italic,
+  Heading,
+  Code,
+  List,
+  Link,
+  Calendar,
+  ChevronRight,
+  Download,
+  Tag,
+  ArrowUpDown,
+  X
 } from 'lucide-react';
 
 interface NotesBoardProps {
@@ -29,6 +42,8 @@ interface NotesBoardProps {
 interface MarkdownRendererProps {
   content: string;
   onToggleCheckbox?: (lineIndex: number) => void;
+  onWikiLinkClick?: (targetTitle: string) => void;
+  onTagClick?: (tag: string) => void;
 }
 
 // Block structure for custom parser
@@ -53,7 +68,11 @@ interface ListItem {
 // =========================================================================
 // INLINE MARKDOWN PARSER
 // =========================================================================
-const parseInlineMarkdown = (text: string) => {
+const parseInlineMarkdown = (
+  text: string,
+  onWikiLinkClick?: (targetTitle: string) => void,
+  onTagClick?: (tag: string) => void
+) => {
   let parts: (string | React.ReactNode)[] = [text];
   
   const boldRegex = /\*\*(.*?)\*\*/g;
@@ -95,26 +114,44 @@ const parseInlineMarkdown = (text: string) => {
   applyFormatting(boldRegex, (_, m) => <strong key={Math.random()} style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{m}</strong>);
   applyFormatting(italicRegex, (_, m) => <em key={Math.random()} style={{ fontStyle: 'italic', color: 'var(--text-secondary)' }}>{m}</em>);
   applyFormatting(highlightRegex, (_, m) => <mark key={Math.random()} style={{ background: 'var(--color-primary-glow)', color: 'var(--text-primary)', borderBottom: '2px solid var(--color-primary)', padding: '0.05rem 0.2rem', borderRadius: '2px' }}>{m}</mark>);
+  
+  // Custom Wiki Link clicks
   applyFormatting(obsidianLinkRegex, (_, target, alias) => (
-    <span key={Math.random()} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: 'var(--color-secondary)', background: 'var(--color-secondary-glow)', padding: '0.05rem 0.4rem', borderRadius: '4px', border: '1px solid rgba(6, 182, 212, 0.2)', fontSize: '0.85em', fontWeight: 500 }}>
-      <span>[[</span>
-      <span style={{ textDecoration: 'underline' }}>{alias || target}</span>
-      <span>]]</span>
+    <span 
+      key={Math.random()} 
+      className="obsidian-wiki-link"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (onWikiLinkClick) onWikiLinkClick(target);
+      }}
+    >
+      {alias || target}
     </span>
   ));
+  
+  // Custom normal link styling
   applyFormatting(linkRegex, (_, text, url) => (
     <a key={Math.random()} href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--color-primary)', textDecoration: 'underline', transition: 'color var(--transition-fast)' }}>
       {text}
     </a>
   ));
+  
+  // Custom Tag clicks
   applyFormatting(tagRegex, (_, space, tag) => (
     <React.Fragment key={Math.random()}>
       {space}
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.15rem', color: 'var(--color-primary)', background: 'var(--color-primary-glow)', padding: '0.05rem 0.35rem', borderRadius: '4px', border: '1px solid rgba(99, 102, 241, 0.2)', fontSize: '0.8em', fontWeight: 600 }}>
+      <span 
+        className="obsidian-tag"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onTagClick) onTagClick(tag);
+        }}
+      >
         #{tag}
       </span>
     </React.Fragment>
   ));
+  
   applyFormatting(codeRegex, (_, m) => <code key={Math.random()} style={{ fontFamily: 'monospace', background: 'rgba(0,0,0,0.3)', padding: '0.15rem 0.35rem', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '0.85em', color: 'var(--color-secondary)', wordBreak: 'break-word' }}>{m}</code>);
 
   return <>{parts}</>;
@@ -408,7 +445,13 @@ const CodeBlock: React.FC<{ code: string; lang: string }> = ({ code, lang }) => 
   );
 };
 
-const TableRenderer: React.FC<{ headers: string[]; rows: string[][]; alignments: ('left' | 'center' | 'right')[] }> = ({ headers, rows, alignments }) => {
+const TableRenderer: React.FC<{ 
+  headers: string[]; 
+  rows: string[][]; 
+  alignments: ('left' | 'center' | 'right')[];
+  onWikiLinkClick?: (targetTitle: string) => void;
+  onTagClick?: (tag: string) => void;
+}> = ({ headers, rows, alignments, onWikiLinkClick, onTagClick }) => {
   return (
     <div style={{ width: '100%', overflowX: 'auto', margin: '1.5rem 0' }} className="custom-scroll">
       <table>
@@ -416,7 +459,7 @@ const TableRenderer: React.FC<{ headers: string[]; rows: string[][]; alignments:
           <tr>
             {headers.map((h, idx) => (
               <th key={idx} style={{ textAlign: alignments[idx] || 'left' }}>
-                {parseInlineMarkdown(h)}
+                {parseInlineMarkdown(h, onWikiLinkClick, onTagClick)}
               </th>
             ))}
           </tr>
@@ -426,7 +469,7 @@ const TableRenderer: React.FC<{ headers: string[]; rows: string[][]; alignments:
             <tr key={rIdx}>
               {row.map((cell, cIdx) => (
                 <td key={cIdx} style={{ textAlign: alignments[cIdx] || 'left' }}>
-                  {parseInlineMarkdown(cell)}
+                  {parseInlineMarkdown(cell, onWikiLinkClick, onTagClick)}
                 </td>
               ))}
             </tr>
@@ -515,7 +558,12 @@ const CalloutRenderer: React.FC<{ type: string; title: string; children: React.R
   );
 };
 
-const ListRenderer: React.FC<{ items: ListItem[]; onToggleCheckbox?: (lineIndex: number) => void }> = ({ items, onToggleCheckbox }) => {
+const ListRenderer: React.FC<{ 
+  items: ListItem[]; 
+  onToggleCheckbox?: (lineIndex: number) => void;
+  onWikiLinkClick?: (targetTitle: string) => void;
+  onTagClick?: (tag: string) => void;
+}> = ({ items, onToggleCheckbox, onWikiLinkClick, onTagClick }) => {
   return (
     <div style={{ margin: '0.85rem 0', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
       {items.map((item, idx) => {
@@ -525,6 +573,7 @@ const ListRenderer: React.FC<{ items: ListItem[]; onToggleCheckbox?: (lineIndex:
         return (
           <div
             key={idx}
+            className={`obsidian-todo-item ${item.checked ? 'checked' : ''}`}
             style={{
               paddingLeft: `${indentLevel * 1.5}rem`,
               display: 'flex',
@@ -563,15 +612,14 @@ const ListRenderer: React.FC<{ items: ListItem[]; onToggleCheckbox?: (lineIndex:
               </span>
             )}
             <span
+              className="obsidian-todo-text"
               style={{
-                color: item.checked ? 'var(--text-muted)' : 'var(--text-primary)',
-                textDecoration: item.checked ? 'line-through' : 'none',
                 fontSize: '0.875rem',
                 flex: 1,
                 paddingTop: '0.05rem'
               }}
             >
-              {parseInlineMarkdown(item.text)}
+              {parseInlineMarkdown(item.text, onWikiLinkClick, onTagClick)}
             </span>
           </div>
         );
@@ -583,7 +631,12 @@ const ListRenderer: React.FC<{ items: ListItem[]; onToggleCheckbox?: (lineIndex:
 // =========================================================================
 // PREMIUM MARKDOWN RENDERER
 // =========================================================================
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onToggleCheckbox }) => {
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ 
+  content, 
+  onToggleCheckbox,
+  onWikiLinkClick,
+  onTagClick
+}) => {
   if (!content) return <p style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Empty note.</p>;
 
   const lines = content.split('\n');
@@ -593,29 +646,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onToggleCh
     switch (block.type) {
       case 'header':
         const HeaderTag = `h${Math.min(6, block.level)}` as React.ElementType;
-        const fontSizes = ['1.75rem', '1.35rem', '1.15rem', '1.05rem', '0.95rem', '0.85rem'];
-        const fontSize = fontSizes[block.level - 1] || '1rem';
-        const isH1 = block.level === 1;
+        const headingId = encodeURIComponent(block.text);
         
         return (
           <HeaderTag
             key={idx}
-            style={{
-              fontSize,
-              fontWeight: 800 - block.level * 40,
-              marginTop: isH1 ? '1.85rem' : '1.35rem',
-              marginBottom: '0.65rem',
-              paddingBottom: isH1 ? '0.4rem' : '0',
-              borderBottom: isH1 ? '1px solid var(--border-color)' : 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-display)'
-            }}
+            id={`heading-${headingId}`}
+            style={{ fontFamily: 'var(--font-display)' }}
           >
-            {isH1 && <span style={{ width: '4px', height: '1.5rem', background: 'var(--grad-primary)', borderRadius: '2px', display: 'inline-block' }} />}
-            {parseInlineMarkdown(block.text)}
+            {block.level === 1 && <span style={{ width: '4px', height: '1.5rem', background: 'var(--grad-primary)', borderRadius: '2px', display: 'inline-block' }} />}
+            {parseInlineMarkdown(block.text, onWikiLinkClick, onTagClick)}
           </HeaderTag>
         );
       
@@ -648,7 +688,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onToggleCh
             }}
           >
             {block.lines.map((line, lIdx) => (
-              <p key={lIdx} style={{ margin: '0.2rem 0' }}>{parseInlineMarkdown(line)}</p>
+              <p key={lIdx} style={{ margin: '0.2rem 0' }}>{parseInlineMarkdown(line, onWikiLinkClick, onTagClick)}</p>
             ))}
           </blockquote>
         );
@@ -661,23 +701,15 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, onToggleCh
         );
 
       case 'table':
-        return <TableRenderer key={idx} headers={block.headers} rows={block.rows} alignments={block.alignments} />;
+        return <TableRenderer key={idx} headers={block.headers} rows={block.rows} alignments={block.alignments} onWikiLinkClick={onWikiLinkClick} onTagClick={onTagClick} />;
 
       case 'list':
-        return <ListRenderer key={idx} items={block.items} onToggleCheckbox={onToggleCheckbox} />;
+        return <ListRenderer key={idx} items={block.items} onToggleCheckbox={onToggleCheckbox} onWikiLinkClick={onWikiLinkClick} onTagClick={onTagClick} />;
 
       case 'paragraph':
         return (
-          <p
-            key={idx}
-            style={{
-              margin: '0.65rem 0',
-              fontSize: '0.875rem',
-              color: 'var(--text-secondary)',
-              lineHeight: '1.7'
-            }}
-          >
-            {parseInlineMarkdown(block.text)}
+          <p key={idx}>
+            {parseInlineMarkdown(block.text, onWikiLinkClick, onTagClick)}
           </p>
         );
 
@@ -700,8 +732,14 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
 }) => {
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'updated' | 'title'>('updated');
   const [editorMode, setEditorMode] = useState<'edit' | 'preview'>('edit');
   const [isSaving, setIsSaving] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
+  const [wikiCreateTarget, setWikiCreateTarget] = useState<string | null>(null);
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Get active note
   const activeNote = useMemo(() => {
@@ -743,21 +781,76 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return () => clearTimeout(timer);
   }, [tempTitle, tempContent, activeNoteId, onUpdateNote, activeNote]);
 
-  // Filter notes based on search term only (minimalist)
+  // Extract unique tags from notes
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    notes.forEach(note => {
+      if (note.tags) {
+        note.tags.forEach(t => tagsSet.add(t));
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [notes]);
+
+  // Clean plain-text snippet for note card preview
+  const getSnippet = (content: string) => {
+    if (!content) return '';
+    const clean = content
+      .replace(/^(#{1,6})\s+/gm, '') // headings
+      .replace(/^\s*[-*+]\s+\[[ xX]\]\s*/gm, '') // checklists
+      .replace(/^\s*[-*+]\s+/gm, '') // lists
+      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, '$2' || '$1') // wiki links
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1') // links
+      .replace(/(?:^|\s)#([a-zA-Z0-9_\-/]+)/g, '') // tags
+      .replace(/`{3}[\s\S]*?`{3}/g, '') // code blocks
+      .replace(/`([^`]+)`/g, '$1') // inline code
+      .replace(/>\s*\[![^\]]+\][^\n]*/g, '') // callout headers
+      .replace(/^>\s*/gm, '') // blockquotes
+      .replace(/\n+/g, ' ') // newlines to spaces
+      .trim();
+    return clean.length > 50 ? clean.substring(0, 50) + '...' : clean;
+  };
+
+  // Filter notes based on search term & selected tag
   const filteredNotes = useMemo(() => {
     return notes.filter(note => {
       const query = searchTerm.toLowerCase();
-      return (
+      const matchesSearch = searchTerm === '' ||
         note.title.toLowerCase().includes(query) || 
-        note.content.toLowerCase().includes(query)
-      );
+        note.content.toLowerCase().includes(query);
+      
+      const matchesTag = !selectedTag || (note.tags && note.tags.includes(selectedTag));
+      
+      return matchesSearch && matchesTag;
     });
-  }, [notes, searchTerm]);
+  }, [notes, searchTerm, selectedTag]);
+
+  // Sort notes
+  const sortedNotes = useMemo(() => {
+    const notesCopy = [...filteredNotes];
+    if (sortBy === 'title') {
+      return notesCopy.sort((a, b) => a.title.localeCompare(b.title));
+    } else {
+      return notesCopy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    }
+  }, [filteredNotes, sortBy]);
 
   // Create new note handler
   const handleCreateNote = async () => {
     const title = 'Untitled Note';
     const content = '# Untitled Note\n\nWrite your thoughts here...\n\n- [ ] Todo item\n- [ ] Call checklist';
+    const noteId = encodeURIComponent(`Notes/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
+    
+    setIsSaving(true);
+    const newId = await onAddNote(noteId, title, content);
+    setActiveNoteId(newId);
+    setEditorMode('edit');
+    setIsSaving(false);
+  };
+
+  // Create new note with pre-defined title (for wiki link click)
+  const handleCreateNoteWithTitle = async (title: string) => {
+    const content = `# ${title}\n\nWrite your thoughts here...\n\nReferenced from [[${activeNote?.title || 'previous note'}]].`;
     const noteId = encodeURIComponent(`Notes/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
     
     setIsSaving(true);
@@ -790,12 +883,82 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
         const currentStatus = match[2];
         const newStatus = (currentStatus === ' ' ? 'x' : ' ');
         lines[lineIndex] = `${match[1]}${newStatus}${match[3]}`;
-        setTempContent(lines.join('\n'));
+        const updated = lines.join('\n');
+        setTempContent(updated);
+        onUpdateNote(activeNoteId!, tempTitle, updated);
       }
     }
   };
 
-  // Helper to decode note path for display
+  // Click wiki-link: navigate to the note, or trigger creation if not found
+  const handleWikiLinkClick = (targetTitle: string) => {
+    const foundNote = notes.find(n => n.title.toLowerCase().trim() === targetTitle.toLowerCase().trim());
+    if (foundNote) {
+      setActiveNoteId(foundNote.id);
+    } else {
+      setWikiCreateTarget(targetTitle);
+    }
+  };
+
+  // Click hashtag in preview: set sidebar filter to this tag
+  const handleTagClick = (tag: string) => {
+    setSelectedTag(selectedTag === tag ? null : tag);
+  };
+
+  // Helper to insert markdown formatting markers at the cursor selection
+  const insertMarkdown = (before: string, after: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const currentVal = textarea.value;
+
+    const selection = currentVal.substring(start, end);
+    const replacement = before + (selection || 'text') + after;
+    const newVal = currentVal.substring(0, start) + replacement + currentVal.substring(end);
+
+    setTempContent(newVal);
+
+    // Refocus and place selection
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorStart = start + before.length;
+      const newCursorEnd = newCursorStart + (selection ? selection.length : 4);
+      textarea.setSelectionRange(newCursorStart, newCursorEnd);
+    }, 0);
+  };
+
+  // Helper to download the current note as a .md file
+  const handleDownloadNote = () => {
+    if (!activeNote) return;
+    const element = document.createElement('a');
+    const file = new Blob([tempContent], { type: 'text/markdown' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${activeNote.title || 'Untitled'}.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  // Relative timestamp calculation
+  const formatRelativeTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
+
+  // Decode folder structure from note ID
   const getNoteFolder = (id: string) => {
     const decoded = decodeURIComponent(id);
     const parts = decoded.split('/');
@@ -805,94 +968,153 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return '';
   };
 
+  const folderStr = activeNote ? getNoteFolder(activeNote.id) : '';
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '0', height: '100%', overflow: 'hidden' }}>
+    <div className="notes-container">
       
       {/* =========================================================================
-         SIDEBAR: Notes list (Redesigned - Distraction Free)
+         SIDEBAR: Notes list (Collapsible, Distraction-Free)
          ========================================================================= */}
-      <div 
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '1.25rem', 
-          height: '100%', 
-          overflow: 'hidden', 
-          padding: '1.5rem 1.25rem 1.25rem 1.25rem', 
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border-color)',
-          backdropFilter: 'var(--glass-blur)',
-          WebkitBackdropFilter: 'var(--glass-blur)'
-        }}
-      >
+      <div className={`notes-sidebar ${!showSidebar ? 'collapsed' : ''}`}>
         
-        {/* Search & Add Note in a single line */}
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <div 
-            className="notes-search-focus"
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              background: 'var(--bg-base)', 
-              border: '1px solid var(--border-color)', 
-              borderRadius: 'var(--radius-sm)', 
-              padding: '0 0.75rem', 
-              flex: 1, 
-              minWidth: 0,
-              height: '36px',
-              transition: 'all var(--transition-fast)'
-            }}
-          >
-            <Search size={13} style={{ color: 'var(--text-muted)', marginRight: '0.45rem', flexShrink: 0 }} />
-            <input
-              type="text"
-              placeholder="Search notes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0, height: '100%' }}
-            />
+        {/* Search bar & Add Note */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem 1rem 0.5rem 1rem', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <div 
+              className="notes-search-focus"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                background: 'var(--bg-base)', 
+                border: '1px solid var(--border-color)', 
+                borderRadius: 'var(--radius-sm)', 
+                padding: '0 0.65rem', 
+                flex: 1, 
+                height: '34px',
+                transition: 'all var(--transition-fast)',
+                position: 'relative'
+              }}
+            >
+              <Search size={13} style={{ color: 'var(--text-muted)', marginRight: '0.4rem', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0, height: '100%' }}
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            
+            <button 
+              onClick={handleCreateNote}
+              style={{ 
+                padding: 0, 
+                borderRadius: 'var(--radius-sm)', 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                width: '34px', 
+                height: '34px',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-base)',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all var(--transition-fast)'
+              }}
+              className="hover-scale"
+              title="New Note"
+            >
+              <Plus size={14} style={{ color: 'var(--text-secondary)' }} />
+            </button>
           </div>
-          <button 
-            onClick={handleCreateNote}
-            style={{ 
-              padding: 0, 
-              borderRadius: 'var(--radius-sm)', 
-              display: 'flex', 
-              justifyContent: 'center', 
-              alignItems: 'center', 
-              width: '36px', 
-              height: '36px',
-              border: '1px solid var(--border-color)',
-              background: 'var(--bg-base)',
-              cursor: 'pointer',
-              flexShrink: 0,
-              transition: 'all var(--transition-fast)'
-            }}
-            className="hover-scale"
-            title="New Note"
-          >
-            <Plus size={14} style={{ color: 'var(--text-secondary)' }} />
-          </button>
+
+          {/* Quick Filters: Sort & Tag Clear */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+            <span style={{ fontWeight: 500 }}>{sortedNotes.length} notes</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button 
+                onClick={() => setSortBy(sortBy === 'updated' ? 'title' : 'updated')} 
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem' }}
+                title={sortBy === 'updated' ? 'Sorted by: Recent' : 'Sorted by: A-Z'}
+              >
+                <ArrowUpDown size={10} />
+                <span>{sortBy === 'updated' ? 'Recent' : 'A-Z'}</span>
+              </button>
+              {selectedTag && (
+                <button 
+                  onClick={() => setSelectedTag(null)} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--color-secondary)', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
+        {/* Tags horizontal scroll */}
+        {allTags.length > 0 && (
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.35rem', 
+            overflowX: 'auto', 
+            padding: '0.5rem 1rem', 
+            borderBottom: '1px solid var(--border-color)', 
+            whiteSpace: 'nowrap'
+          }} className="custom-scroll">
+            {allTags.map(tag => {
+              const isActive = selectedTag === tag;
+              return (
+                <span
+                  key={tag}
+                  onClick={() => setSelectedTag(isActive ? null : tag)}
+                  style={{
+                    fontSize: '0.65rem',
+                    padding: '0.15rem 0.4rem',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    background: isActive ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.03)',
+                    border: '1px solid ' + (isActive ? 'var(--color-primary)' : 'var(--border-color)'),
+                    color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
+                    transition: 'all var(--transition-fast)',
+                    fontWeight: isActive ? 600 : 400
+                  }}
+                >
+                  #{tag}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* Notes list */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto', flex: 1, paddingRight: '0.1rem', marginTop: '0.5rem' }} className="custom-scroll">
-          {filteredNotes.length === 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', overflowY: 'auto', flex: 1, padding: '0.5rem' }} className="custom-scroll">
+          {sortedNotes.length === 0 ? (
             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', marginTop: '2rem' }}>
-              No notes
+              No notes found
             </div>
           ) : (
-            filteredNotes.map(note => {
+            sortedNotes.map(note => {
               const isActive = note.id === activeNoteId;
-              const dateObj = new Date(note.updatedAt);
-              const folderStr = getNoteFolder(note.id);
+              const dateStr = formatRelativeTime(note.updatedAt);
+              const cardFolder = getNoteFolder(note.id);
+              const snippet = getSnippet(note.content);
               
               return (
                 <div
                   key={note.id}
                   onClick={() => setActiveNoteId(note.id)}
                   style={{
-                    padding: '0.75rem 1rem',
+                    padding: '0.85rem 1rem',
                     borderRadius: 'var(--radius-sm)',
                     background: isActive ? 'var(--bg-surface-hover)' : 'transparent',
                     border: '1px solid ' + (isActive ? 'var(--border-active)' : 'transparent'),
@@ -901,9 +1123,10 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                     position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.2rem'
+                    gap: '0.25rem',
+                    overflow: 'hidden'
                   }}
-                  className="hover-scale"
+                  className="hover-scale group"
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ 
@@ -935,9 +1158,21 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                     </button>
                   </div>
                   
-                  {/* Folder & Date info row */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6rem', color: 'var(--text-muted)' }}>
-                    <span>{folderStr ? `${folderStr} • ` : ''}{dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                  {/* Content snippet */}
+                  {snippet && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', lineHeight: '1.4', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {snippet}
+                    </span>
+                  )}
+                  
+                  {/* Folder & Date info */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                      {cardFolder ? `${cardFolder} • ` : ''}{dateStr}
+                    </span>
+                    {note.tags && note.tags.length > 0 && (
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 500 }}>#{note.tags[0]}</span>
+                    )}
                   </div>
                 </div>
               );
@@ -948,112 +1183,263 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
       </div>
 
       {/* =========================================================================
-         MAIN EDITOR: Centered Distraction-Free Reading/Writing Canvas
+         MAIN CANVAS: distraction-free Obsidian Editor
          ========================================================================= */}
-      <div 
-        style={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          height: '100%', 
-          overflow: 'hidden', 
-          background: 'transparent'
-        }}
-      >
+      <div className="notes-canvas">
         {activeNote ? (
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
             
-            {/* Header controls (Extremely simplified) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2.5rem 0.5rem 2.5rem', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {isSaving && (
-                  <Loader size={12} className="spin-slow" style={{ color: 'var(--color-primary)' }} />
+            {/* Header controls (Sleek minimalist bar) */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              padding: '0 1.5rem', 
+              height: '52px', 
+              borderBottom: '1px solid var(--border-color)', 
+              background: 'var(--bg-surface)', 
+              backdropFilter: 'var(--glass-blur)',
+              WebkitBackdropFilter: 'var(--glass-blur)',
+              zIndex: 5,
+              flexShrink: 0 
+            }}>
+              {/* Sidebar toggle & Folder layout info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button 
+                  onClick={() => setShowSidebar(!showSidebar)} 
+                  style={{ 
+                    background: 'transparent', 
+                    border: 'none', 
+                    color: 'var(--text-secondary)', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center',
+                    padding: '0.25rem',
+                    borderRadius: '4px',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                  className="hover-scale"
+                  title={showSidebar ? "Hide Sidebar" : "Show Sidebar"}
+                >
+                  {showSidebar ? <PanelLeftClose size={15} /> : <PanelLeft size={15} />}
+                </button>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  {folderStr && <span style={{ color: 'var(--text-muted)' }}>{folderStr} /</span>}
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{tempTitle || 'Untitled Note'}</span>
+                </div>
+              </div>
+
+              {/* Status Save Indicator */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                {isSaving ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3,px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    <Loader size={10} className="spin-slow" style={{ color: 'var(--color-primary)' }} />
+                    <span>Saving...</span>
+                  </span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3px', fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--color-success)', display: 'inline-block' }} />
+                    <span>Saved</span>
+                  </span>
                 )}
               </div>
 
-              {/* Single click Edit / Preview toggle */}
-              <button 
-                onClick={() => setEditorMode(editorMode === 'edit' ? 'preview' : 'edit')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  padding: '0.4rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-color)',
-                  background: 'var(--bg-base)',
-                  color: 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)'
-                }}
-              >
-                {editorMode === 'edit' ? <Eye size={12} /> : <Edit3 size={12} />}
-                <span>{editorMode === 'edit' ? 'Preview' : 'Edit'}</span>
-              </button>
+              {/* Toggle Write/Read and Download */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button 
+                  onClick={() => setEditorMode(editorMode === 'edit' ? 'preview' : 'edit')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    padding: '0.35rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-base)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all var(--transition-fast)'
+                  }}
+                  className="hover-scale"
+                  title={editorMode === 'edit' ? "Switch to Reading View" : "Switch to Editing View"}
+                >
+                  {editorMode === 'edit' ? <BookOpen size={11} /> : <Edit3 size={11} />}
+                  <span>{editorMode === 'edit' ? 'Read' : 'Write'}</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadNote}
+                  style={{ 
+                    background: 'transparent', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-base)',
+                    color: 'var(--text-secondary)', 
+                    cursor: 'pointer', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    padding: '0.35rem',
+                    transition: 'all var(--transition-fast)' 
+                  }}
+                  className="hover-scale"
+                  title="Download Markdown"
+                >
+                  <Download size={12} />
+                </button>
+              </div>
             </div>
 
-            {/* Centered Workspace Area */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 0' }} className="custom-scroll">
-              <div style={{ maxWidth: '680px', margin: '0 auto', padding: '0 2.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            {/* Document Workspace Area */}
+            <div className="notes-scroll-viewport custom-scroll">
+              <div className="notes-doc-sheet">
                 
-                {/* Sleek, borderless note title */}
+                {/* Note title (seamlessly integrated borderless input) */}
                 <input
                   type="text"
                   value={tempTitle}
                   onChange={(e) => setTempTitle(e.target.value)}
                   style={{
-                    fontSize: '2rem',
+                    fontSize: '1.85rem',
                     fontWeight: 700,
                     background: 'transparent',
                     border: 'none',
                     color: 'var(--text-primary)',
                     outline: 'none',
                     width: '100%',
-                    paddingBottom: '0.75rem',
-                    marginBottom: '1.25rem',
+                    paddingBottom: '0.5rem',
+                    marginBottom: '1rem',
                     fontFamily: 'var(--font-display)',
                     borderBottom: '1px solid var(--border-color)',
-                    letterSpacing: '-0.02em'
+                    letterSpacing: '-0.02em',
+                    transition: 'all var(--transition-fast)'
                   }}
                   placeholder="Note Title"
                 />
 
-                {/* Content Input or Preview */}
-                <div style={{ flex: 1, minHeight: '300px' }}>
+                {/* Minimal inline Formatting Toolbar (Only in Edit mode) */}
+                {editorMode === 'edit' && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    padding: '0.25rem 0.5rem',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
+                    marginBottom: '1.25rem',
+                    flexWrap: 'wrap'
+                  }}>
+                    <button onClick={() => insertMarkdown('**', '**')} className="notes-toolbar-btn" title="Bold"><Bold size={12} /></button>
+                    <button onClick={() => insertMarkdown('*', '*')} className="notes-toolbar-btn" title="Italic"><Italic size={12} /></button>
+                    <button onClick={() => insertMarkdown('# ')} className="notes-toolbar-btn" title="Header 1"><Heading size={12} style={{ transform: 'scale(0.85)' }} /></button>
+                    
+                    <span style={{ width: '1px', height: '12px', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+                    
+                    <button onClick={() => insertMarkdown('- [ ] ')} className="notes-toolbar-btn" title="Checklist"><CheckSquare size={12} /></button>
+                    <button onClick={() => insertMarkdown('- ')} className="notes-toolbar-btn" title="Bullet List"><List size={12} /></button>
+                    <button onClick={() => insertMarkdown('```\n', '\n```')} className="notes-toolbar-btn" title="Code Block"><Code size={12} /></button>
+                    <button onClick={() => insertMarkdown('> [!NOTE]\n> ')} className="notes-toolbar-btn" title="Callout"><Quote size={12} /></button>
+                    <button onClick={() => insertMarkdown('[', '](url)')} className="notes-toolbar-btn" title="Link"><Link size={12} /></button>
+                  </div>
+                )}
+
+                {/* Content Input or Preview (Exactly identical layout properties to prevent layout shifts) */}
+                <div style={{ flex: 1, minHeight: '400px' }}>
                   {editorMode === 'edit' ? (
                     <textarea
+                      ref={textareaRef}
                       value={tempContent}
                       onChange={(e) => setTempContent(e.target.value)}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        resize: 'none',
-                        fontSize: '1rem',
-                        lineHeight: '1.7',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'var(--font-body)',
-                        padding: 0
-                      }}
-                      placeholder="Start writing..."
+                      className="notes-textarea notes-doc-font"
+                      placeholder="Start writing in markdown..."
                     />
                   ) : (
-                    <MarkdownRenderer content={tempContent} onToggleCheckbox={handleToggleCheckbox} />
+                    <MarkdownRenderer 
+                      content={tempContent} 
+                      onToggleCheckbox={handleToggleCheckbox} 
+                      onWikiLinkClick={handleWikiLinkClick}
+                      onTagClick={handleTagClick}
+                    />
                   )}
                 </div>
 
               </div>
             </div>
 
+            {/* Custom confirmation dialog for on-the-fly wiki link creation */}
+            {wikiCreateTarget && (
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(4px)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 100
+              }}>
+                <div className="glass-card animate-scale" style={{
+                  padding: '1.5rem',
+                  maxWidth: '360px',
+                  width: '90%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem',
+                  textAlign: 'center'
+                }}>
+                  <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)' }}>Create New Note?</h4>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                    Do you want to create a new note named <strong>"{wikiCreateTarget}"</strong>?
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '0.25rem' }}>
+                    <button
+                      onClick={() => {
+                        handleCreateNoteWithTitle(wikiCreateTarget);
+                        setWikiCreateTarget(null);
+                      }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'var(--color-primary)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                        fontWeight: 600
+                      }}
+                    >
+                      Create Note
+                    </button>
+                    <button
+                      onClick={() => setWikiCreateTarget(null)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: 'transparent',
+                        border: '1px solid var(--border-color)',
+                        color: 'var(--text-secondary)',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         ) : (
           /* Redesigned Empty State UI (Minimalist) */
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem' }}>
             <div 
-              className="pulse-glow"
               style={{ 
                 display: 'inline-flex', 
                 padding: '1rem', 
@@ -1063,7 +1449,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                 color: 'var(--color-primary)' 
               }}
             >
-              <Sparkles size={28} className="spin-slow" />
+              <Sparkles size={28} />
             </div>
             <div style={{ textAlign: 'center' }}>
               <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Zenith Notes</h3>

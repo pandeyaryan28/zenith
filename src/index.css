@@ -792,35 +792,131 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 }
 
 /* =========================================================================
-   Obsidian Premium Markdown Preview Styles
+   Obsidian-Style Minimalist Notes Styles
    ========================================================================= */
-.obsidian-preview {
-  font-family: var(--font-body);
-  color: var(--text-secondary);
-  line-height: 1.75;
+
+/* Main layout containers */
+.notes-container {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  background: transparent;
 }
 
+.notes-sidebar {
+  width: 260px;
+  height: 100%;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border-color);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.notes-sidebar.collapsed {
+  width: 0px;
+  margin-left: -260px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.notes-canvas {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+  position: relative;
+}
+
+/* Scrollable document wrapper */
+.notes-scroll-viewport {
+  flex: 1;
+  overflow-y: auto;
+  padding: 3rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.notes-doc-sheet {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Shared Typography between Editor & Preview to prevent Layout Shifts */
+.notes-doc-font {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Editor Specifics */
+.notes-textarea {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  padding: 0;
+  margin: 0;
+  caret-color: var(--color-primary);
+}
+
+/* Obsidian Premium Markdown Preview Styles */
+.obsidian-preview {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.obsidian-preview p {
+  margin: 0.95rem 0;
+}
+
+/* Headers style with gradient accent indicators */
 .obsidian-preview h1,
 .obsidian-preview h2,
 .obsidian-preview h3,
 .obsidian-preview h4,
 .obsidian-preview h5,
 .obsidian-preview h6 {
+  font-family: var(--font-display);
   color: var(--text-primary);
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+  margin-top: 1.85rem;
+  margin-bottom: 0.85rem;
   font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.obsidian-preview p {
-  margin: 0.85rem 0;
+.obsidian-preview h1 {
+  font-size: 1.85rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
 }
+
+.obsidian-preview h2 { font-size: 1.45rem; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem; }
+.obsidian-preview h3 { font-size: 1.25rem; }
+.obsidian-preview h4 { font-size: 1.1rem; }
 
 /* Custom Table Design */
 .obsidian-preview table {
   width: 100%;
   border-collapse: collapse;
-  margin: 1.5rem 0;
+  margin: 1.75rem 0;
   font-size: 0.875rem;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -829,7 +925,7 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 }
 
 .obsidian-preview th {
-  background: rgba(128, 128, 128, 0.08);
+  background: rgba(128, 128, 128, 0.05);
   padding: 0.75rem 1rem;
   font-weight: 700;
   color: var(--text-primary);
@@ -858,7 +954,71 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 }
 
 .obsidian-preview tr:hover {
-  background-color: rgba(255, 255, 255, 0.02) !important;
+  background-color: rgba(255, 255, 255, 0.015) !important;
+}
+
+/* Wiki-Links & Tags */
+.obsidian-wiki-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-secondary);
+  background: var(--color-secondary-glow);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid rgba(6, 182, 212, 0.15);
+  font-size: 0.9em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.obsidian-wiki-link:hover {
+  background: rgba(6, 182, 212, 0.25);
+  border-color: var(--color-secondary);
+  transform: translateY(-0.5px);
+}
+
+.obsidian-tag {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-primary);
+  background: var(--color-primary-glow);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.obsidian-tag:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: var(--color-primary);
+  transform: translateY(-0.5px);
+}
+
+/* Checklist Todo Animations */
+.obsidian-todo-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin: 0.45rem 0;
+  transition: opacity 0.25s ease;
+}
+
+.obsidian-todo-item.checked {
+  opacity: 0.6;
+}
+
+.obsidian-todo-text {
+  transition: text-decoration 0.25s ease, color 0.25s ease;
+}
+
+.obsidian-todo-item.checked .obsidian-todo-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
 }
 
 /* Code Copy Transitions */
@@ -879,6 +1039,27 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 .notes-search-focus:focus-within {
   border-color: var(--color-primary) !important;
   box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+}
+
+/* Toolbar buttons formatting style */
+.notes-toolbar-btn {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.notes-toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  transform: translateY(-0.5px);
 }
 
 
