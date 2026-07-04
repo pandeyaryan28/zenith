@@ -52,6 +52,11 @@ function App() {
   const [habitLogs, setHabitLogs] = useState<{ [habitId: string]: { [dateStr: string]: HabitLog } }>({});
   const [pomodoroSessions, setPomodoroSessions] = useState<PomodoroSession[]>([]);
   const [activeListId, setActiveListId] = useState<string>('');
+
+  const activeListIdRef = useRef(activeListId);
+  useEffect(() => {
+    activeListIdRef.current = activeListId;
+  }, [activeListId]);
   
   // Sync State
   const [isSyncing, setIsSyncing] = useState(false);
@@ -430,6 +435,17 @@ function App() {
         loadedNotes.push(docSnap.data() as LocalNote);
       });
       setNotes(loadedNotes);
+
+      // Sync tasks from new/modified notes to task board
+      const currentListId = activeListIdRef.current;
+      if (currentListId) {
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'added' || change.type === 'modified') {
+            const note = change.doc.data() as LocalNote;
+            syncNoteTasksToBoard(user.uid, change.doc.id, note.title, note.content, currentListId).catch(console.error);
+          }
+        });
+      }
     }, (error) => {
       console.error("Firestore notes subscription error:", error);
     });
