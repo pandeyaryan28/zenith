@@ -1272,21 +1272,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                   type="text"
                   value={tempTitle}
                   onChange={(e) => setTempTitle(e.target.value)}
-                  style={{
-                    fontSize: '1.85rem',
-                    fontWeight: 700,
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    width: '100%',
-                    paddingBottom: '0.5rem',
-                    marginBottom: '1rem',
-                    fontFamily: 'var(--font-display)',
-                    borderBottom: '1px solid var(--border-color)',
-                    letterSpacing: '-0.02em',
-                    transition: 'all var(--transition-fast)'
-                  }}
+                  className="notes-title-input"
                   placeholder="Note Title"
                 />
 

@@ -846,10 +846,54 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 
 .notes-doc-sheet {
   width: 100%;
-  max-width: 720px;
+  max-width: 760px;
   display: flex;
   flex-direction: column;
   min-height: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 3rem 2.5rem;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  transition: all var(--transition-normal);
+}
+
+/* Document Sheet Input & Textarea resets (Cohesive Single-Page Editor) */
+.notes-doc-sheet input,
+.notes-doc-sheet textarea {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  color: var(--text-primary) !important;
+  border-radius: 0 !important;
+}
+
+.notes-doc-sheet input:focus,
+.notes-doc-sheet textarea:focus {
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
+/* Specific styling for the title input */
+.notes-title-input {
+  font-size: 1.85rem !important;
+  font-weight: 700 !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+  outline: none !important;
+  width: 100% !important;
+  padding-bottom: 0.5rem !important;
+  margin-bottom: 1.25rem !important;
+  font-family: var(--font-display) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  letter-spacing: -0.02em !important;
+  transition: all var(--transition-fast) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 }
 
 /* Shared Typography between Editor & Preview to prevent Layout Shifts */
@@ -863,15 +907,19 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 
 /* Editor Specifics */
 .notes-textarea {
-  width: 100%;
-  height: 100%;
-  background: transparent;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 0;
-  margin: 0;
-  caret-color: var(--color-primary);
+  width: 100% !important;
+  height: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  resize: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  caret-color: var(--color-primary) !important;
+  font-family: var(--font-body) !important;
+  font-size: 15px !important;
+  line-height: 1.8 !important;
+  color: var(--text-primary) !important;
 }
 
 /* Obsidian Premium Markdown Preview Styles */
