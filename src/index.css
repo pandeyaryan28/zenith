@@ -791,3 +791,94 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   border: 1px solid var(--border-color) !important;
 }
 
+/* =========================================================================
+   Obsidian Premium Markdown Preview Styles
+   ========================================================================= */
+.obsidian-preview {
+  font-family: var(--font-body);
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+
+.obsidian-preview h1,
+.obsidian-preview h2,
+.obsidian-preview h3,
+.obsidian-preview h4,
+.obsidian-preview h5,
+.obsidian-preview h6 {
+  color: var(--text-primary);
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+}
+
+.obsidian-preview p {
+  margin: 0.85rem 0;
+}
+
+/* Custom Table Design */
+.obsidian-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.875rem;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.obsidian-preview th {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+}
+
+.obsidian-preview td {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.obsidian-preview tr:last-child td {
+  border-bottom: none;
+}
+
+.obsidian-preview th:last-child,
+.obsidian-preview td:last-child {
+  border-right: none;
+}
+
+.obsidian-preview tr {
+  transition: background-color var(--transition-fast) ease;
+}
+
+.obsidian-preview tr:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Code Copy Transitions */
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary) !important;
+}
+
+/* Dynamic glow effect for selected notes card */
+.note-card-selected {
+  position: relative;
+  background: var(--bg-surface-hover) !important;
+  border-color: var(--border-active) !important;
+  box-shadow: var(--shadow-md), 0 0 15px rgba(99, 102, 241, 0.1) !important;
+}
+
+/* Input Focus Ring glow for Notes Search */
+.notes-search-focus:focus-within {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+}
+
+

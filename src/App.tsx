@@ -21,7 +21,6 @@ import { AuthPage } from './components/AuthPage';
 import { 
   saveLocalNote, 
   deleteLocalNote, 
-  syncNoteTasksToBoard, 
   updateNoteCheckboxInMarkdown 
 } from './services/noteService';
 import type { LocalNote } from './services/noteService';
@@ -436,7 +435,8 @@ function App() {
       });
       setNotes(loadedNotes);
 
-      // Sync tasks from new/modified notes to task board
+      // Sync tasks from new/modified notes to task board (disabled for now)
+      /*
       const currentListId = activeListIdRef.current;
       if (currentListId) {
         snapshot.docChanges().forEach((change) => {
@@ -446,6 +446,7 @@ function App() {
           }
         });
       }
+      */
     }, (error) => {
       console.error("Firestore notes subscription error:", error);
     });
@@ -642,9 +643,11 @@ function App() {
     if (!user) return;
     try {
       await saveLocalNote(user.uid, noteId, title, content);
+      /*
       if (activeListId) {
         syncNoteTasksToBoard(user.uid, noteId, title, content, activeListId).catch(console.error);
       }
+      */
     } catch (err) {
       console.error(err);
     }
