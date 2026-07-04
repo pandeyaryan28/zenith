@@ -24,12 +24,10 @@ import {
   Code,
   List,
   Link,
-  Calendar,
-  ChevronRight,
   Download,
-  Tag,
   ArrowUpDown,
-  X
+  X,
+  CheckSquare
 } from 'lucide-react';
 
 interface NotesBoardProps {
@@ -799,7 +797,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
       .replace(/^(#{1,6})\s+/gm, '') // headings
       .replace(/^\s*[-*+]\s+\[[ xX]\]\s*/gm, '') // checklists
       .replace(/^\s*[-*+]\s+/gm, '') // lists
-      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, '$2' || '$1') // wiki links
+      .replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (_, target, alias) => alias || target) // wiki links
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1') // links
       .replace(/(?:^|\s)#([a-zA-Z0-9_\-/]+)/g, '') // tags
       .replace(/`{3}[\s\S]*?`{3}/g, '') // code blocks
@@ -1272,7 +1270,6 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                 <button
                   onClick={handleDownloadNote}
                   style={{ 
-                    background: 'transparent', 
                     border: '1px solid var(--border-color)', 
                     borderRadius: 'var(--radius-sm)',
                     background: 'var(--bg-base)',
