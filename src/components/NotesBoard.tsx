@@ -377,8 +377,8 @@ const CodeBlock: React.FC<{ code: string; lang: string }> = ({ code, lang }) => 
   };
 
   return (
-    <div style={{ background: 'rgba(0, 0, 0, 0.45)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', margin: '1.25rem 0', overflow: 'hidden', fontFamily: 'monospace', position: 'relative' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '0.4rem 0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+    <div style={{ background: 'var(--bg-base)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', margin: '1.25rem 0', overflow: 'hidden', fontFamily: 'monospace', position: 'relative' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(128,128,128,0.04)', padding: '0.4rem 0.75rem', borderBottom: '1px solid var(--border-color)' }}>
         <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>{lang || 'code'}</span>
         <button
           onClick={handleCopy}
@@ -502,7 +502,7 @@ const CalloutRenderer: React.FC<{ type: string; title: string; children: React.R
       display: 'flex',
       flexDirection: 'column',
       gap: '0.4rem',
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+      boxShadow: 'var(--shadow-sm)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.875rem', color: titleColor, textTransform: 'capitalize' }}>
         {icon}
@@ -815,12 +815,14 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
         style={{ 
           display: 'flex', 
           flexDirection: 'column', 
-          gap: '1rem', 
+          gap: '1.25rem', 
           height: '100%', 
           overflow: 'hidden', 
-          padding: '1.5rem 1rem 1rem 1rem', 
-          background: 'rgba(5, 7, 10, 0.4)',
+          padding: '1.5rem 1.25rem 1.25rem 1.25rem', 
+          background: 'var(--bg-surface)',
           borderRight: '1px solid var(--border-color)',
+          backdropFilter: 'var(--glass-blur)',
+          WebkitBackdropFilter: 'var(--glass-blur)'
         }}
       >
         
@@ -831,38 +833,40 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              background: 'rgba(255, 255, 255, 0.02)', 
+              background: 'var(--bg-base)', 
               border: '1px solid var(--border-color)', 
               borderRadius: 'var(--radius-sm)', 
-              padding: '0.45rem 0.75rem', 
+              padding: '0 0.75rem', 
               flex: 1, 
               minWidth: 0,
+              height: '36px',
               transition: 'all var(--transition-fast)'
             }}
           >
-            <Search size={12} style={{ color: 'var(--text-muted)', marginRight: '0.4rem', flexShrink: 0 }} />
+            <Search size={13} style={{ color: 'var(--text-muted)', marginRight: '0.45rem', flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search notes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0 }}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.75rem', width: '100%', padding: 0, height: '100%' }}
             />
           </div>
           <button 
             onClick={handleCreateNote}
             style={{ 
-              padding: '0.45rem', 
+              padding: 0, 
               borderRadius: 'var(--radius-sm)', 
               display: 'flex', 
               justifyContent: 'center', 
               alignItems: 'center', 
-              width: '32px', 
-              height: '32px',
+              width: '36px', 
+              height: '36px',
               border: '1px solid var(--border-color)',
-              background: 'rgba(255,255,255,0.02)',
+              background: 'var(--bg-base)',
               cursor: 'pointer',
-              flexShrink: 0
+              flexShrink: 0,
+              transition: 'all var(--transition-fast)'
             }}
             className="hover-scale"
             title="New Note"
@@ -888,16 +892,16 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                   key={note.id}
                   onClick={() => setActiveNoteId(note.id)}
                   style={{
-                    padding: '0.65rem 0.85rem',
+                    padding: '0.75rem 1rem',
                     borderRadius: 'var(--radius-sm)',
-                    background: isActive ? 'rgba(255, 255, 255, 0.03)' : 'transparent',
-                    border: '1px solid ' + (isActive ? 'var(--border-color)' : 'transparent'),
+                    background: isActive ? 'var(--bg-surface-hover)' : 'transparent',
+                    border: '1px solid ' + (isActive ? 'var(--border-active)' : 'transparent'),
                     cursor: 'pointer',
                     transition: 'all var(--transition-fast)',
                     position: 'relative',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.15rem'
+                    gap: '0.2rem'
                   }}
                   className="hover-scale"
                 >
@@ -959,7 +963,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             
             {/* Header controls (Extremely simplified) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 2rem 0.5rem 2rem', flexShrink: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1.25rem 2.5rem 0.5rem 2.5rem', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {isSaving && (
                   <Loader size={12} className="spin-slow" style={{ color: 'var(--color-primary)' }} />
@@ -974,11 +978,11 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                   alignItems: 'center',
                   gap: '0.4rem',
                   fontSize: '0.75rem',
-                  fontWeight: 500,
-                  padding: '0.35rem 0.75rem',
+                  fontWeight: 600,
+                  padding: '0.4rem 0.85rem',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-color)',
-                  background: 'rgba(255,255,255,0.02)',
+                  background: 'var(--bg-base)',
                   color: 'var(--text-secondary)',
                   cursor: 'pointer',
                   transition: 'all var(--transition-fast)'
@@ -990,8 +994,8 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
             </div>
 
             {/* Centered Workspace Area */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 0' }} className="custom-scroll">
-              <div style={{ maxWidth: '680px', margin: '0 auto', padding: '0 2rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '2rem 0' }} className="custom-scroll">
+              <div style={{ maxWidth: '680px', margin: '0 auto', padding: '0 2.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
                 
                 {/* Sleek, borderless note title */}
                 <input
@@ -1006,8 +1010,8 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                     color: 'var(--text-primary)',
                     outline: 'none',
                     width: '100%',
-                    paddingBottom: '1rem',
-                    marginBottom: '1.5rem',
+                    paddingBottom: '0.75rem',
+                    marginBottom: '1.25rem',
                     fontFamily: 'var(--font-display)',
                     borderBottom: '1px solid var(--border-color)',
                     letterSpacing: '-0.02em'
@@ -1028,8 +1032,8 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                         border: 'none',
                         outline: 'none',
                         resize: 'none',
-                        fontSize: '0.95rem',
-                        lineHeight: '1.8',
+                        fontSize: '1rem',
+                        lineHeight: '1.7',
                         color: 'var(--text-primary)',
                         fontFamily: 'var(--font-body)',
                         padding: 0

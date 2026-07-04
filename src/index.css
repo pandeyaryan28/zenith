@@ -822,14 +822,14 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   border-collapse: collapse;
   margin: 1.5rem 0;
   font-size: 0.875rem;
-  background: rgba(255, 255, 255, 0.01);
+  background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .obsidian-preview th {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(128, 128, 128, 0.08);
   padding: 0.75rem 1rem;
   font-weight: 700;
   color: var(--text-primary);
