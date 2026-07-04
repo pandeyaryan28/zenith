@@ -459,10 +459,16 @@ input:focus, select:focus, textarea:focus {
   grid-template-columns: 260px 1fr;
   min-block-size: 100dvb;
   z-index: 1;
+  transition: grid-template-columns var(--transition-normal);
+}
+
+.layout-grid.sidebar-collapsed {
+  grid-template-columns: 72px 1fr;
 }
 
 @media (max-width: 1024px) {
-  .layout-grid {
+  .layout-grid,
+  .layout-grid.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 }

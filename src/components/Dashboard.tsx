@@ -19,7 +19,9 @@ import {
   AlertCircle,
   Sparkles,
   FolderKanban,
-  FileText
+  FileText,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -140,6 +142,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onDeleteNote
 }) => {
   const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'notes' | 'settings'>('dashboard');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('zenith-sidebar-collapsed') === 'true';
+  });
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem('zenith-sidebar-collapsed', String(next));
+      return next;
+    });
+  };
 
   const activeTasksCount = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted).length;
 
@@ -198,13 +211,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
       <div className="ambient-glow glow-top-left" style={{ opacity: 0.25 }} />
       <div className="ambient-glow glow-bottom-right" style={{ opacity: 0.25 }} />
 
-      <div className="layout-grid">
+      <div className={`layout-grid ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         
         {/* =========================================================================
            Sidebar Navigation Panel
            ========================================================================= */}
         <aside className="glass-panel" style={{
-          padding: '1.5rem',
+          padding: isSidebarCollapsed ? '1.5rem 0.5rem' : '1.5rem',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
@@ -213,23 +226,78 @@ export const Dashboard: React.FC<DashboardProps> = ({
           borderLeft: 'none',
           borderTop: 'none',
           borderBottom: 'none',
-          zIndex: 2
+          zIndex: 2,
+          position: 'relative',
+          width: isSidebarCollapsed ? '72px' : '260px',
+          boxSizing: 'border-box',
+          transition: 'width var(--transition-normal), padding var(--transition-normal)'
         }}>
+          {/* Floating Collapse/Expand Button */}
+          <button 
+            onClick={toggleSidebar}
+            className="hover-scale"
+            style={{
+              position: 'absolute',
+              top: '1.75rem',
+              right: '-12px',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 10,
+              boxShadow: 'var(--shadow-sm)',
+              color: 'var(--text-secondary)',
+              padding: 0,
+              transition: 'all var(--transition-fast)'
+            }}
+            title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          >
+            {isSidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+          </button>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
             
             {/* Logo Brand */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-              <div style={{ display: 'inline-flex', padding: '0.5rem', borderRadius: '0.75rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.625rem',
+              justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+              paddingLeft: isSidebarCollapsed ? 0 : '0.25rem'
+            }}>
+              <div style={{ 
+                display: 'inline-flex', 
+                padding: '0.5rem', 
+                borderRadius: '0.75rem', 
+                background: 'var(--color-primary-glow)', 
+                border: '1px solid rgba(99, 102, 241, 0.2)' 
+              }}>
                 <Flame size={20} className="text-gradient" />
               </div>
-              <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
-                Zenith
-              </h1>
+              {!isSidebarCollapsed && (
+                <h1 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
+                  Zenith
+                </h1>
+              )}
             </div>
 
             {/* Main Navigation List */}
             <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.5rem', paddingLeft: '0.5rem' }}>NAVIGATION</div>
+              {!isSidebarCollapsed && (
+                <div style={{ 
+                  fontSize: '0.7rem', 
+                  color: 'var(--text-muted)', 
+                  fontWeight: 700, 
+                  letterSpacing: '0.05em', 
+                  marginBottom: '0.5rem', 
+                  paddingLeft: '0.5rem' 
+                }}>NAVIGATION</div>
+              )}
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.id;
@@ -240,8 +308,9 @@ export const Dashboard: React.FC<DashboardProps> = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.65rem 0.85rem',
+                      justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+                      gap: isSidebarCollapsed ? 0 : '0.75rem',
+                      padding: isSidebarCollapsed ? '0.65rem 0' : '0.65rem 0.85rem',
                       borderRadius: 'var(--radius-sm)',
                       background: isActive ? 'var(--color-primary-glow)' : 'transparent',
                       border: 'none',
@@ -253,151 +322,216 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       width: '100%',
                       transition: 'all var(--transition-fast)'
                     }}
+                    title={isSidebarCollapsed ? item.label : undefined}
                     className="hover-scale"
                   >
                     <Icon size={16} style={{ color: isActive ? item.color : 'inherit' }} />
-                    <span>{item.label}</span>
+                    {!isSidebarCollapsed && <span>{item.label}</span>}
                   </button>
                 );
               })}
             </nav>
 
             {/* Quick Metrics (Sidebar compact view) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>TODAY'S METRICS</div>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Pending Tasks</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{activeTasksCount}</span>
+            {!isSidebarCollapsed && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', borderRadius: 'var(--radius-sm)', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>TODAY'S METRICS</div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Pending Tasks</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-primary)' }}>{activeTasksCount}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Focus Duration</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>{focusMinutesToday}m</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Habits Streaks</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-warning)' }}>{maxStreak}d</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Habits Checked</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{completedHabitsTodayCount}/{activeHabitsToday.length}</span>
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Focus Duration</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-secondary)' }}>{focusMinutesToday}m</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Habits Streaks</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-warning)' }}>{maxStreak}d</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Habits Checked</span>
-                <span style={{ fontWeight: 700, color: 'var(--color-success)' }}>{completedHabitsTodayCount}/{activeHabitsToday.length}</span>
-              </div>
-            </div>
+            )}
 
             {/* Live Pomodoro Sidebar Widget */}
-            <div 
-              onClick={() => setActivePage('pomodoro')}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.5rem',
-                padding: '0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid ' + (pomoState === 'running' ? 'var(--border-active)' : 'var(--border-color)'),
-                boxShadow: pomoState === 'running' ? '0 0 10px rgba(99, 102, 241, 0.1)' : 'none',
-                cursor: 'pointer',
-                transition: 'all var(--transition-fast)'
-              }}
-              className="hover-scale"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            {isSidebarCollapsed ? (
+              <div 
+                onClick={() => setActivePage('pomodoro')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  padding: '0.5rem 0.25rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid ' + (pomoState === 'running' ? 'var(--border-active)' : 'var(--border-color)'),
+                  boxShadow: pomoState === 'running' ? '0 0 10px rgba(99, 102, 241, 0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)'
+                }}
+                className="hover-scale"
+                title={`${pomoType === 'work' ? 'Focus Session' : pomoType === 'shortBreak' ? 'Short Break' : 'Long Break'}: ${Math.floor(pomoTimeLeft / 60)}:${String(pomoTimeLeft % 60).padStart(2, '0')}`}
+              >
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Timer size={18} style={{ color: pomoState === 'running' ? 'var(--color-primary)' : 'var(--text-secondary)' }} />
                   <span style={{
+                    position: 'absolute',
+                    top: '-2px',
+                    right: '-2px',
                     width: '6px',
                     height: '6px',
                     borderRadius: '50%',
-                    background: pomoState === 'running' ? 'var(--color-danger)' : 'var(--text-muted)',
-                    display: 'inline-block',
+                    background: pomoState === 'running' ? 'var(--color-danger)' : 'transparent',
                     animation: pomoState === 'running' ? 'pulse-glow 1.5s infinite' : 'none'
                   }} />
-                  {pomoType === 'work' ? 'FOCUS SESSION' : pomoType === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
-                </span>
-                
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startPausePomo();
-                  }}
-                  style={{
-                    padding: '0.2rem',
-                    borderRadius: '50%',
-                    background: pomoState === 'running' ? 'rgba(255,255,255,0.06)' : 'var(--grad-primary)',
-                    border: 'none',
-                    width: '20px',
-                    height: '20px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {pomoState === 'running' ? (
-                    <Pause size={10} style={{ color: 'var(--text-primary)' }} />
-                  ) : (
-                    <Play size={10} style={{ color: '#fff', marginLeft: '1px' }} />
-                  )}
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '0.1rem' }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
-                  {Math.floor(pomoTimeLeft / 60)}:{String(pomoTimeLeft % 60).padStart(2, '0')}
-                </span>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                  of {Math.round(pomoTotalDuration / 60)}m
-                </span>
-              </div>
-
-              {pomoSelectedTaskIds.length > 0 ? (
-                <div style={{ 
-                  fontSize: '0.65rem', 
-                  color: 'var(--text-secondary)', 
-                  overflow: 'hidden', 
-                  textOverflow: 'ellipsis', 
-                  whiteSpace: 'nowrap',
-                  background: 'rgba(0,0,0,0.15)',
-                  padding: '0.2rem 0.4rem',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(255,255,255,0.02)',
-                  marginTop: '0.1rem'
-                }}>
-                  Focusing: {tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(t => t.title).join(', ')}
                 </div>
-              ) : (
-                pomoType === 'work' && (
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                    No tasks linked.
+                <span style={{ fontSize: '0.7rem', fontWeight: 700, color: pomoState === 'running' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                  {Math.floor(pomoTimeLeft / 60)}m
+                </span>
+              </div>
+            ) : (
+              <div 
+                onClick={() => setActivePage('pomodoro')}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid ' + (pomoState === 'running' ? 'var(--border-active)' : 'var(--border-color)'),
+                  boxShadow: pomoState === 'running' ? '0 0 10px rgba(99, 102, 241, 0.1)' : 'none',
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)'
+                }}
+                className="hover-scale"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: pomoState === 'running' ? 'var(--color-danger)' : 'var(--text-muted)',
+                      display: 'inline-block',
+                      animation: pomoState === 'running' ? 'pulse-glow 1.5s infinite' : 'none'
+                    }} />
+                    {pomoType === 'work' ? 'FOCUS SESSION' : pomoType === 'shortBreak' ? 'SHORT BREAK' : 'LONG BREAK'}
                   </span>
-                )
-              )}
-            </div>
+                  
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startPausePomo();
+                    }}
+                    style={{
+                      padding: '0.2rem',
+                      borderRadius: '50%',
+                      background: pomoState === 'running' ? 'rgba(255,255,255,0.06)' : 'var(--grad-primary)',
+                      border: 'none',
+                      width: '20px',
+                      height: '20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {pomoState === 'running' ? (
+                      <Pause size={10} style={{ color: 'var(--text-primary)' }} />
+                    ) : (
+                      <Play size={10} style={{ color: '#fff', marginLeft: '1px' }} />
+                    )}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginTop: '0.1rem' }}>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-primary)' }}>
+                    {Math.floor(pomoTimeLeft / 60)}:{String(pomoTimeLeft % 60).padStart(2, '0')}
+                  </span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                    of {Math.round(pomoTotalDuration / 60)}m
+                  </span>
+                </div>
+
+                {pomoSelectedTaskIds.length > 0 ? (
+                  <div style={{ 
+                    fontSize: '0.65rem', 
+                    color: 'var(--text-secondary)', 
+                    overflow: 'hidden', 
+                    textOverflow: 'ellipsis', 
+                    whiteSpace: 'nowrap',
+                    background: 'rgba(0,0,0,0.15)',
+                    padding: '0.2rem 0.4rem',
+                    borderRadius: '4px',
+                    border: '1px solid rgba(255,255,255,0.02)',
+                    marginTop: '0.1rem'
+                  }}>
+                    Focusing: {tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(t => t.title).join(', ')}
+                  </div>
+                ) : (
+                  pomoType === 'work' && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      No tasks linked.
+                    </span>
+                  )
+                )}
+              </div>
+            )}
 
           </div>
 
           {/* User Details & Sign Out */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          {isSidebarCollapsed ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
               {user.photoURL ? (
                 <img 
                   src={user.photoURL} 
                   alt={user.displayName || 'User'} 
-                  style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)' }}
+                  style={{ width: '28px', height: '28px', borderRadius: '50%', border: '1px solid var(--border-color)' }}
+                  title={`${user.displayName} (${user.email})`}
                 />
               ) : (
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}>
-                  <UserIcon size={14} />
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }} title={`${user.displayName} (${user.email})`}>
+                  <UserIcon size={12} />
                 </div>
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.displayName || 'Developer'}
-                </span>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {user.email}
-                </span>
-              </div>
+              <button 
+                onClick={onSignOut}
+                className="btn-secondary hover-scale" 
+                style={{ padding: '0.4rem', borderRadius: 'var(--radius-sm)', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', maxWidth: '36px' }}
+                title="Sign Out"
+              >
+                <LogOut size={14} />
+              </button>
             </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                {user.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt={user.displayName || 'User'} 
+                    style={{ width: '32px', height: '32px', borderRadius: '50%', border: '1px solid var(--border-color)' }}
+                  />
+                ) : (
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)' }}>
+                    <UserIcon size={14} />
+                  </div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.displayName || 'Developer'}
+                  </span>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {user.email}
+                  </span>
+                </div>
+              </div>
 
             <button 
               onClick={onSignOut}
@@ -408,6 +542,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <span>Sign Out</span>
             </button>
           </div>
+          )}
         </aside>
 
         {/* =========================================================================
