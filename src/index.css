@@ -792,321 +792,461 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
 }
 
 /* =========================================================================
-   Obsidian-Style Minimalist Notes Styles
+   Bento Grid & Inline WYSIWYG Notes Board Styles
    ========================================================================= */
 
-/* Main layout containers */
+/* Main Layout Grid & Viewport */
 .notes-container {
   display: flex;
+  flex-direction: column;
   height: 100%;
+  width: 100%;
   overflow: hidden;
   position: relative;
   background: transparent;
 }
 
-.notes-sidebar {
-  width: 260px;
+/* Bento Grid Board */
+.notes-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-auto-rows: 200px;
+  gap: 1.25rem;
+  width: 100%;
   height: 100%;
-  background: var(--bg-surface);
-  border-right: 1px solid var(--border-color);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), margin-left 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
-  overflow: hidden;
-  z-index: 10;
-}
-
-.notes-sidebar.collapsed {
-  width: 0px;
-  margin-left: -260px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.notes-canvas {
-  flex: 1;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: transparent;
-  position: relative;
-}
-
-/* Scrollable document wrapper */
-.notes-scroll-viewport {
-  flex: 1;
+  padding: 1.5rem 1.5rem 6.5rem 1.5rem;
   overflow-y: auto;
-  padding: 3rem 1.5rem;
-  display: flex;
-  justify-content: center;
+  align-content: start;
 }
 
-.notes-doc-sheet {
-  width: 100%;
-  max-width: 760px;
+/* Bento Card Elements */
+.bento-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  justify-content: space-between;
+  padding: 1.5rem;
   border-radius: var(--radius-md);
-  padding: 3rem 2.5rem;
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
-  transition: all var(--transition-normal);
-}
-
-/* Document Sheet Input & Textarea resets (Cohesive Single-Page Editor) */
-.notes-doc-sheet input,
-.notes-doc-sheet textarea {
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-  color: var(--text-primary) !important;
-  border-radius: 0 !important;
-}
-
-.notes-doc-sheet input:focus,
-.notes-doc-sheet textarea:focus {
-  box-shadow: none !important;
-  border-color: transparent !important;
-}
-
-/* Specific styling for the title input */
-.notes-title-input {
-  font-size: 1.85rem !important;
-  font-weight: 700 !important;
-  background: transparent !important;
-  border: none !important;
-  color: var(--text-primary) !important;
-  outline: none !important;
-  width: 100% !important;
-  padding-bottom: 0.5rem !important;
-  margin-bottom: 1.25rem !important;
-  font-family: var(--font-display) !important;
-  border-bottom: 1px solid var(--border-color) !important;
-  letter-spacing: -0.02em !important;
-  transition: all var(--transition-fast) !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-}
-
-/* Shared Typography between Editor & Preview to prevent Layout Shifts */
-.notes-doc-font {
-  font-family: var(--font-body);
-  font-size: 15px;
-  line-height: 1.8;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-
-/* Editor Specifics */
-.notes-textarea {
-  width: 100% !important;
-  height: 100% !important;
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  resize: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  caret-color: var(--color-primary) !important;
-  font-family: var(--font-body) !important;
-  font-size: 15px !important;
-  line-height: 1.8 !important;
-  color: var(--text-primary) !important;
-}
-
-/* Obsidian Premium Markdown Preview Styles */
-.obsidian-preview {
-  color: var(--text-primary);
-  word-break: break-word;
-}
-
-.obsidian-preview p {
-  margin: 0.95rem 0;
-}
-
-/* Headers style with gradient accent indicators */
-.obsidian-preview h1,
-.obsidian-preview h2,
-.obsidian-preview h3,
-.obsidian-preview h4,
-.obsidian-preview h5,
-.obsidian-preview h6 {
-  font-family: var(--font-display);
-  color: var(--text-primary);
-  margin-top: 1.85rem;
-  margin-bottom: 0.85rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.obsidian-preview h1 {
-  font-size: 1.85rem;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-
-.obsidian-preview h2 { font-size: 1.45rem; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 0.25rem; }
-.obsidian-preview h3 { font-size: 1.25rem; }
-.obsidian-preview h4 { font-size: 1.1rem; }
-
-/* Custom Table Design */
-.obsidian-preview table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.75rem 0;
-  font-size: 0.875rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-}
-
-.obsidian-preview th {
-  background: rgba(128, 128, 128, 0.05);
-  padding: 0.75rem 1rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--border-color);
-  border-right: 1px solid var(--border-color);
-}
-
-.obsidian-preview td {
-  padding: 0.65rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  border-right: 1px solid var(--border-color);
-  color: var(--text-secondary);
-}
-
-.obsidian-preview tr:last-child td {
-  border-bottom: none;
-}
-
-.obsidian-preview th:last-child,
-.obsidian-preview td:last-child {
-  border-right: none;
-}
-
-.obsidian-preview tr {
-  transition: background-color var(--transition-fast) ease;
-}
-
-.obsidian-preview tr:hover {
-  background-color: rgba(255, 255, 255, 0.015) !important;
-}
-
-/* Wiki-Links & Tags */
-.obsidian-wiki-link {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-secondary);
-  background: var(--color-secondary-glow);
-  padding: 0.05rem 0.35rem;
-  border-radius: 4px;
-  border: 1px solid rgba(6, 182, 212, 0.15);
-  font-size: 0.9em;
-  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  overflow: hidden;
   text-decoration: none;
 }
 
-.obsidian-wiki-link:hover {
-  background: rgba(6, 182, 212, 0.25);
-  border-color: var(--color-secondary);
-  transform: translateY(-0.5px);
-}
-
-.obsidian-tag {
-  display: inline-flex;
-  align-items: center;
-  color: var(--color-primary);
-  background: var(--color-primary-glow);
-  padding: 0.05rem 0.35rem;
-  border-radius: 4px;
-  border: 1px solid rgba(99, 102, 241, 0.15);
-  font-size: 0.85em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.obsidian-tag:hover {
-  background: rgba(99, 102, 241, 0.25);
+.bento-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
   border-color: var(--color-primary);
-  transform: translateY(-0.5px);
 }
 
-/* Checklist Todo Animations */
-.obsidian-todo-item {
+/* Responsive grid spans */
+.bento-card.double-width {
+  grid-column: span 2;
+}
+.bento-card.double-height {
+  grid-row: span 2;
+}
+
+@media (max-width: 768px) {
+  .bento-card.double-width {
+    grid-column: span 1;
+  }
+  .bento-card.double-height {
+    grid-row: span 1;
+  }
+}
+
+/* Card Elements */
+.bento-card-folder {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.bento-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  line-height: 1.3;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bento-card-snippet {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  flex-grow: 1;
+}
+
+/* Checklist items rendered directly inside a card */
+.bento-card-todo-list {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
-  margin: 0.45rem 0;
-  transition: opacity 0.25s ease;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
 }
 
-.obsidian-todo-item.checked {
-  opacity: 0.6;
+.bento-card-todo-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }
 
-.obsidian-todo-text {
-  transition: text-decoration 0.25s ease, color 0.25s ease;
-}
-
-.obsidian-todo-item.checked .obsidian-todo-text {
+.bento-card-todo-item.checked {
+  opacity: 0.5;
   text-decoration: line-through;
+}
+
+.bento-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
 }
 
-/* Code Copy Transitions */
-.code-copy-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary) !important;
+/* Hover Tools overlay */
+.bento-hover-actions {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: flex;
+  gap: 0.35rem;
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: all 0.2s ease;
+  z-index: 5;
 }
 
-/* Input Focus Ring glow for Notes Search */
-.notes-search-focus:focus-within {
-  border-color: var(--color-primary) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+.bento-card:hover .bento-hover-actions {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* Toolbar buttons formatting style */
-.notes-toolbar-btn {
-  background: transparent;
-  border: none;
-  border-radius: 4px;
+.bento-action-btn {
   width: 26px;
   height: 26px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 15, 20, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
   display: flex;
   justify-content: center;
   align-items: center;
-  color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.15s ease;
 }
 
-.notes-toolbar-btn:hover {
+.bento-action-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+.bento-action-btn.btn-delete:hover {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+}
+
+/* Centered Bottom Navigation Dock */
+.bento-filter-dock {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  background: rgba(15, 15, 20, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 90vw;
+}
+
+.dock-search-box {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0 0.5rem;
+  height: 32px;
+  width: 140px;
+  transition: all 0.25s ease;
+}
+
+.dock-search-box:focus-within {
+  width: 220px;
+  border-color: var(--color-primary);
   background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
-  transform: translateY(-0.5px);
+}
+
+.dock-search-box input {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+  outline: none !important;
+  font-size: 0.75rem;
+  width: 100%;
+  padding: 0 0.25rem !important;
+}
+
+.dock-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-color);
+  margin: 0 0.25rem;
+}
+
+.dock-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 32px;
+  padding: 0 0.75rem;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.dock-btn:hover, .dock-btn.active {
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.dock-btn-icon-only {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Tags dropdown/scroller popover in dock */
+.dock-tags-popover {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 280px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 105;
 }
 
 /* =========================================================================
-   Obsidian-Style Redesign Variables & Style Mode Overrides
+   Slide-Over Drawer & Inline WYSIWYG Editor Sheet
    ========================================================================= */
 
-/* Callout CSS Variables - Default (Dark) */
+.workspace-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-base);
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.workspace-drawer.open {
+  transform: translateY(0);
+}
+
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  height: 56px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.drawer-editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.wysiwyg-editor-sheet {
+  flex: 1;
+  overflow-y: auto;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  scroll-behavior: smooth;
+}
+
+.wysiwyg-sheet-inner {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* Heading style in WYSIWYG */
+.wysiwyg-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+  letter-spacing: -0.03em;
+  caret-color: var(--color-primary);
+}
+
+/* Line editing items */
+.live-editable-line {
+  position: relative;
+  min-height: 1.6rem;
+  padding: 0.25rem 0.65rem;
+  margin: 0.1rem 0;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  line-height: 1.7;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  cursor: text;
+}
+
+.live-editable-line:hover {
+  background: rgba(128, 128, 128, 0.02);
+}
+
+.live-editable-line.active-edit {
+  background: rgba(128, 128, 128, 0.045) !important;
+  border-color: var(--border-color);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.line-editor-textarea {
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+  font-family: monospace !important;
+  font-size: 0.9rem !important;
+  resize: none !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1.7 !important;
+  caret-color: var(--color-primary) !important;
+}
+
+/* Floating Outline Panel */
+.drawer-outline-sidebar {
+  width: 240px;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (max-width: 900px) {
+  .drawer-outline-sidebar {
+    display: none;
+  }
+}
+
+.outline-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.outline-item {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+
+.outline-item:hover {
+  color: var(--color-primary);
+}
+
+/* Callout CSS Variables */
 :root {
   --co-note-border: #3b82f6;
   --co-note-bg: rgba(59, 130, 246, 0.06);
@@ -1137,161 +1277,133 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   --co-question-text: #a78bfa;
 }
 
-/* Callout CSS Variables - Light Theme Overrides (High Legibility Contrast) */
-html[data-theme="light"] {
-  --co-note-border: #2563eb;
-  --co-note-bg: rgba(37, 99, 235, 0.04);
-  --co-note-text: #1d4ed8;
-
-  --co-todo-border: #4f46e5;
-  --co-todo-bg: rgba(79, 70, 229, 0.04);
-  --co-todo-text: #4338ca;
-
-  --co-tip-border: #0891b2;
-  --co-tip-bg: rgba(8, 145, 178, 0.04);
-  --co-tip-text: #0e7490;
-
-  --co-warning-border: #d97706;
-  --co-warning-bg: rgba(217, 119, 6, 0.04);
-  --co-warning-text: #92400e;
-
-  --co-danger-border: #dc2626;
-  --co-danger-bg: rgba(220, 38, 38, 0.04);
-  --co-danger-text: #991b1b;
-
-  --co-success-border: #059669;
-  --co-success-bg: rgba(5, 150, 105, 0.04);
-  --co-success-text: #065f46;
-
-  --co-question-border: #7c3aed;
-  --co-question-bg: rgba(124, 58, 237, 0.04);
-  --co-question-text: #5b21b6;
+/* Rendered elements within inline line components */
+.wysiwyg-preview-content {
+  width: 100%;
 }
+.wysiwyg-preview-content h1 { font-family: var(--font-display); font-size: 1.75rem; font-weight: 700; margin: 1rem 0 0.5rem 0; color: var(--text-primary); }
+.wysiwyg-preview-content h2 { font-family: var(--font-display); font-size: 1.4rem; font-weight: 700; margin: 0.9rem 0 0.4rem 0; color: var(--text-primary); }
+.wysiwyg-preview-content h3 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; margin: 0.8rem 0 0.3rem 0; color: var(--text-primary); }
+.wysiwyg-preview-content h4 { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; margin: 0.7rem 0 0.3rem 0; color: var(--text-primary); }
+.wysiwyg-preview-content h5 { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; margin: 0.6rem 0 0.2rem 0; color: var(--text-primary); }
+.wysiwyg-preview-content h6 { font-family: var(--font-display); font-size: 0.85rem; font-weight: 700; margin: 0.5rem 0 0.2rem 0; color: var(--text-primary); }
+.wysiwyg-preview-content hr { border: none; height: 1px; background: linear-gradient(90deg, var(--border-color) 0%, rgba(255,255,255,0.01) 100%); margin: 1.25rem 0; }
+.wysiwyg-preview-content blockquote { border-left: 3px solid var(--color-primary-glow); padding-left: 0.75rem; margin: 0.5rem 0; font-style: italic; color: var(--text-secondary); }
 
-/* Redesigned Note Card container styling (CSS controlled) */
-.note-card {
-  padding: 0.85rem 1rem;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  border: 1px solid transparent;
-  border-left: 3px solid transparent;
+/* Wiki Links and Tags */
+.wysiwyg-wiki-link {
+  color: var(--color-secondary);
+  background: var(--color-secondary-glow);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid rgba(6, 182, 212, 0.12);
+  font-size: 0.88em;
+  font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition-fast);
+}
+.wysiwyg-wiki-link:hover {
+  background: rgba(6, 182, 212, 0.2);
+  border-color: var(--color-secondary);
+}
+.wysiwyg-tag {
+  color: var(--color-primary);
+  background: var(--color-primary-glow);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+}
+.wysiwyg-tag:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--color-primary);
 }
 
-.note-card:hover {
-  background: var(--bg-surface-hover);
-  border-color: var(--border-color);
+/* =========================================================================
+   STYLE / THEME OVERRIDES (Bento & Workspace Drawer)
+   ========================================================================= */
+
+/* Glassmorphism Overrides */
+html[data-style="glassmorphism"] .bento-card {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+html[data-style="glassmorphism"] .bento-card:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: var(--color-primary) !important;
 }
 
-.note-card.active {
-  background: var(--bg-surface-hover) !important;
-  border-color: var(--border-active) !important;
-  border-left: 3px solid var(--color-primary) !important;
-  box-shadow: var(--shadow-sm), 0 0 12px var(--color-primary-glow) !important;
-}
-
-/* Card overrides: Neumorphism style overrides */
-html[data-style="neumorphism"] .note-card {
-  margin: 0.25rem 0.5rem;
+/* Neumorphism Overrides */
+html[data-style="neumorphism"] .bento-card {
+  background: var(--bg-card) !important;
   border: none !important;
-  border-left: none !important;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm) !important;
+  border-radius: var(--radius-lg) !important;
 }
-
-html[data-style="neumorphism"] .note-card:hover {
-  box-shadow: var(--shadow-md);
-  background: var(--bg-surface-hover);
+html[data-style="neumorphism"] .bento-card:hover {
+  box-shadow: var(--shadow-md) !important;
 }
-
-html[data-style="neumorphism"] .note-card.active {
-  box-shadow: var(--nm-shadow-inset) !important;
+html[data-style="neumorphism"] .bento-filter-dock {
+  background: var(--bg-surface) !important;
+  border: none !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: var(--radius-xl) !important;
+}
+html[data-style="neumorphism"] .live-editable-line.active-edit {
   background: transparent !important;
-  border: 1px solid var(--border-active) !important;
-}
-
-/* Card overrides: Minimalist style overrides */
-html[data-style="minimalist"] .note-card {
-  border-radius: 0px !important;
+  box-shadow: var(--nm-shadow-inset) !important;
   border: none !important;
-  border-bottom: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-sm) !important;
 }
 
-html[data-style="minimalist"] .note-card:hover {
-  background: var(--bg-surface-hover);
+/* Sleek Minimalist Overrides */
+html[data-style="minimalist"] .bento-card {
+  border-radius: 0px !important;
+  border: 1px solid var(--border-color) !important;
+  box-shadow: none !important;
+}
+html[data-style="minimalist"] .bento-card:hover {
+  background: var(--bg-surface-hover) !important;
+  border-color: var(--text-primary) !important;
+}
+html[data-style="minimalist"] .bento-filter-dock {
+  border-radius: 0px !important;
+  background: var(--bg-surface) !important;
+  border: 2px solid var(--border-color) !important;
+  box-shadow: none !important;
+}
+html[data-style="minimalist"] .live-editable-line {
+  border-radius: 0px !important;
+}
+html[data-style="minimalist"] .live-editable-line.active-edit {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid var(--color-primary) !important;
 }
 
-html[data-style="minimalist"] .note-card.active {
-  background: var(--color-primary) !important;
-  border-bottom: 1px solid var(--color-primary) !important;
-}
-
-html[data-style="minimalist"] .note-card.active * {
-  color: var(--bg-base) !important;
-}
-
-/* Card overrides: Retro Terminal style overrides */
-html[data-style="retro"] .note-card {
+/* Retro Terminal Overrides */
+html[data-style="retro"] .bento-card {
   border-radius: 0px !important;
   border: 1px dashed var(--border-color) !important;
-  margin-bottom: 0.35rem;
+  background: var(--bg-card) !important;
+  box-shadow: none !important;
 }
-
-html[data-style="retro"] .note-card:hover {
-  border-style: solid !important;
-  background: rgba(0, 255, 0, 0.04);
-}
-
-html[data-style="retro"] .note-card.active {
+html[data-style="retro"] .bento-card:hover {
   border-style: solid !important;
   border-color: var(--color-primary) !important;
   background: var(--color-primary-glow) !important;
-  box-shadow: var(--shadow-sm) !important;
 }
-
-/* Optimized Document Sheet Container styling */
-.notes-doc-sheet {
-  width: 100%;
-  max-width: 760px;
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 3rem 2.5rem;
-  box-shadow: var(--shadow-md);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  transition: all var(--transition-normal);
+html[data-style="retro"] .bento-filter-dock {
+  border-radius: 0px !important;
+  background: var(--bg-base) !important;
+  border: 2px solid var(--color-primary) !important;
+  box-shadow: none !important;
 }
-
-html[data-style="neumorphism"] .notes-doc-sheet {
-  background: var(--bg-card);
-  box-shadow: var(--shadow-md);
-  border-radius: var(--radius-lg);
-  border: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+html[data-style="retro"] .live-editable-line.active-edit {
+  background: rgba(0, 255, 0, 0.04) !important;
+  border: 1px dashed var(--color-primary) !important;
+  border-radius: 0px !important;
 }
-
-html[data-style="minimalist"] .notes-doc-sheet {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  box-shadow: none;
-  border-radius: 0px;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-html[data-style="retro"] .notes-doc-sheet {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-md);
-  border-radius: 0px;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-
