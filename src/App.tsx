@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query } from 'firebase/firestore';
 import { auth, db, signOutUser, signInWithGoogle } from './firebase';
 import { 
   addLocalTask, 
@@ -20,8 +20,7 @@ import type { GoogleTaskList, GoogleTask, GoogleEvent } from './services/googleA
 import { AuthPage } from './components/AuthPage';
 import { 
   saveLocalNote, 
-  deleteLocalNote, 
-  updateNoteCheckboxInMarkdown 
+  deleteLocalNote
 } from './services/noteService';
 import type { LocalNote } from './services/noteService';
 import { Dashboard } from './components/Dashboard';
@@ -533,6 +532,7 @@ function App() {
   // Optimistic UI Handlers
   // =========================================================================
 
+  /*
   const syncTaskCompletionToNote = async (userId: string, taskId: string, completed: boolean) => {
     try {
       const taskRef = doc(db, 'users', userId, 'tasks', taskId);
@@ -555,6 +555,7 @@ function App() {
       console.error("Failed to sync task toggle back to note:", err);
     }
   };
+  */
 
   const handleAddTask = async (title: string, notes?: string, due?: string) => {
     if (!user || !activeListId) return;
@@ -577,8 +578,8 @@ function App() {
       await updateLocalTask(user.uid, activeListId, taskId, {
         status: nextStatus
       });
-      // Sync task toggle back to the Obsidian note content
-      await syncTaskCompletionToNote(user.uid, taskId, nextStatus === 'completed');
+      // Sync task toggle back to the Obsidian note content (disabled)
+      // await syncTaskCompletionToNote(user.uid, taskId, nextStatus === 'completed');
     } catch (err) {
       console.error(err);
     }
@@ -620,9 +621,11 @@ function App() {
     if (!user || !activeListId) return;
     try {
       await updateLocalTask(user.uid, activeListId, taskId, taskData);
+      /*
       if (taskData.status) {
         await syncTaskCompletionToNote(user.uid, taskId, taskData.status === 'completed');
       }
+      */
     } catch (err) {
       console.error(err);
     }
