@@ -334,15 +334,20 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         
         {/* Search and Sort controls */}
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, position: 'relative', minWidth: '200px' }}>
-            <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <div className="global-search-container" style={{ flex: 1, minWidth: '200px' }}>
+            <Search size={14} className="global-search-icon" />
             <input
               type="text"
               placeholder="Search tasks by title or note..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ paddingLeft: '2.25rem', background: 'rgba(0, 0, 0, 0.2)', fontSize: '0.85rem' }}
+              className="global-search-input"
             />
+            {searchQuery && (
+              <button className="global-search-clear-btn" onClick={() => setSearchQuery('')}>
+                <X size={12} />
+              </button>
+            )}
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

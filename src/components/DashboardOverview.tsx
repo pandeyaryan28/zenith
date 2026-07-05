@@ -18,7 +18,8 @@ import {
   RotateCcw,
   Search,
   Square,
-  FolderKanban
+  FolderKanban,
+  X
 } from 'lucide-react';
 
 interface DashboardOverviewProps {
@@ -488,31 +489,22 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               </button>
 
               {isTaskSelectorOpen && (
-                <div style={{ 
-                  position: 'absolute', 
-                  bottom: '100%', 
-                  left: 0, 
-                  width: '100%', 
-                  maxHeight: '150px', 
-                  background: 'rgba(15, 18, 30, 0.98)', 
-                  backdropFilter: 'blur(10px)', 
-                  border: '1px solid var(--border-color)', 
-                  borderRadius: 'var(--radius-sm)', 
-                  zIndex: 10, 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  marginBottom: '6px', 
-                  padding: '0.4rem' 
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.2rem 0.4rem', background: 'rgba(0,0,0,0.2)', borderRadius: '4px', marginBottom: '0.4rem' }}>
-                    <Search size={11} style={{ opacity: 0.5 }} />
+                <div className="global-search-results-overlay" style={{ bottom: '100%', top: 'auto', maxHeight: '160px', padding: '0.4rem', marginBottom: '6px' }}>
+                  <div className="global-search-container" style={{ height: '28px', marginBottom: '0.4rem' }}>
+                    <Search size={11} className="global-search-icon" style={{ left: '0.5rem' }} />
                     <input 
                       type="text" 
                       placeholder="Search active tasks..." 
                       value={taskSearchQuery} 
                       onChange={(e) => setTaskSearchQuery(e.target.value)}
-                      style={{ border: 'none', background: 'transparent', fontSize: '0.7rem', width: '100%', height: 'auto', padding: '0.1rem 0', outline: 'none', color: 'var(--text-primary)' }}
+                      className="global-search-input"
+                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem 0.2rem 1.8rem !important' }}
                     />
+                    {taskSearchQuery && (
+                      <button className="global-search-clear-btn" style={{ right: '0.5rem' }} onClick={() => setTaskSearchQuery('')}>
+                        <X size={10} />
+                      </button>
+                    )}
                   </div>
                   <div className="custom-scroll" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     {filteredTasks.length === 0 ? (
@@ -524,7 +516,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                           <button
                             key={task.id}
                             onClick={() => toggleTaskSelection(task.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem', borderRadius: '4px', background: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'transparent', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.7rem', textAlign: 'left', width: '100%', cursor: 'pointer', border: 'none' }}
+                            className={`global-search-result-item ${isSelected ? 'active' : ''}`}
+                            style={{ fontSize: '0.7rem', padding: '0.3rem 0.5rem' }}
                           >
                             {isSelected ? <CheckSquare size={10} /> : <Square size={10} />}
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>

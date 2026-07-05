@@ -127,6 +127,52 @@ const parseInlineMarkdown = (
 };
 
 // =========================================================================
+// BEAUTIFUL COMPILED TABLE COMPONENT
+// =========================================================================
+interface CompiledTableProps {
+  headers: string[];
+  rows: string[][];
+  alignments: ('left' | 'center' | 'right')[];
+  onWikiLinkClick: (target: string) => void;
+  onTagClick: (tag: string) => void;
+}
+
+const CompiledTable: React.FC<CompiledTableProps> = ({
+  headers,
+  rows,
+  alignments,
+  onWikiLinkClick,
+  onTagClick
+}) => {
+  return (
+    <div style={{ width: '100%', overflowX: 'auto', margin: '0.85rem 0' }} className="custom-scroll">
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', margin: '0.5rem 0' }}>
+        <thead>
+          <tr style={{ borderBottom: '2px solid var(--border-color)', background: 'rgba(128,128,128,0.03)' }}>
+            {headers.map((h, idx) => (
+              <th key={idx} style={{ textAlign: alignments[idx] || 'left', padding: '0.5rem 0.75rem', fontWeight: 700, border: '1px solid var(--border-color)' }}>
+                {parseInlineMarkdown(h, onWikiLinkClick, onTagClick)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rIdx) => (
+            <tr key={rIdx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+              {row.map((cell, cIdx) => (
+                <td key={cIdx} style={{ textAlign: alignments[cIdx] || 'left', padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>
+                  {parseInlineMarkdown(cell, onWikiLinkClick, onTagClick)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// =========================================================================
 // INTERACTIVE LINE COMPONENT (WYSIWYG)
 // =========================================================================
 interface LiveEditableLineProps {
@@ -409,6 +455,107 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     });
     return indices;
   }, [lines]);
+
+  // Table block identification
+  const tableGroups = useMemo(() => {
+    const groups: { start: number; end: number; headers: string[]; rows: string[][]; alignments: ('left'|'center'|'right')[] }[] = [];
+    
+    let inTable = false;
+    let tableLines: string[] = [];
+    let startIdx = -1;
+
+    const parseRow = (line: string) => {
+      let cleanLine = line.trim();
+      if (cleanLine.startsWith('|')) cleanLine = cleanLine.substring(1);
+      if (cleanLine.endsWith('|')) cleanLine = cleanLine.substring(0, cleanLine.length - 1);
+      return cleanLine.split('|').map(cell => cell.trim());
+    };
+
+    lines.forEach((line, index) => {
+      const hasPipe = line.includes('|');
+      
+      if (hasPipe) {
+        if (!inTable) {
+          inTable = true;
+          startIdx = index;
+          tableLines = [line];
+        } else {
+          tableLines.push(line);
+        }
+      } else {
+        if (inTable) {
+          if (tableLines.length >= 2 && /^\s*\|?\s*(:?-+:?\s*\|?)+\s*$/.test(tableLines[1])) {
+            const headerLine = tableLines[0];
+            const dividerLine = tableLines[1];
+            const rowLines = tableLines.slice(2);
+            
+            const headers = parseRow(headerLine);
+            const alignments = parseRow(dividerLine).map(col => {
+              const trimmed = col.trim();
+              const left = trimmed.startsWith(':');
+              const right = trimmed.endsWith(':');
+              if (left && right) return 'center';
+              if (right) return 'right';
+              return 'left';
+            });
+            const rows = rowLines.map(line => parseRow(line));
+
+            groups.push({
+              start: startIdx,
+              end: index - 1,
+              headers,
+              rows,
+              alignments
+            });
+          }
+          inTable = false;
+          tableLines = [];
+        }
+      }
+    });
+
+    if (inTable && tableLines.length >= 2 && /^\s*\|?\s*(:?-+:?\s*\|?)+\s*$/.test(tableLines[1])) {
+      const headerLine = tableLines[0];
+      const dividerLine = tableLines[1];
+      const rowLines = tableLines.slice(2);
+      
+      const headers = parseRow(headerLine);
+      const alignments = parseRow(dividerLine).map(col => {
+        const trimmed = col.trim();
+        const left = trimmed.startsWith(':');
+        const right = trimmed.endsWith(':');
+        if (left && right) return 'center';
+        if (right) return 'right';
+        return 'left';
+      });
+      const rows = rowLines.map(line => parseRow(line));
+
+      groups.push({
+        start: startIdx,
+        end: lines.length - 1,
+        headers,
+        rows,
+        alignments
+      });
+    }
+
+    return groups;
+  }, [lines]);
+
+  const tableLineMap = useMemo(() => {
+    const map: Record<number, { isStart: boolean; start: number; end: number; table: typeof tableGroups[0] }> = {};
+    tableGroups.forEach(group => {
+      for (let i = group.start; i <= group.end; i++) {
+        map[i] = {
+          isStart: i === group.start,
+          start: group.start,
+          end: group.end,
+          table: group
+        };
+      }
+    });
+    return map;
+  }, [tableGroups]);
 
   // Parse unchecked checklist items for a note
   const parseChecklist = (content: string) => {
@@ -801,20 +948,20 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
          ========================================================================= */}
       <div className="bento-filter-dock">
         {/* Search */}
-        <div className="dock-search-box">
-          <Search size={13} style={{ color: 'var(--text-muted)' }} />
+        <div className="global-search-container" style={{ width: '160px', height: '32px' }}>
+          <Search size={13} className="global-search-icon" />
           <input 
             type="text" 
             placeholder="Search notes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="global-search-input"
+            style={{ paddingLeft: '2rem !important' }}
           />
           {searchTerm && (
-            <X 
-              size={12} 
-              style={{ color: 'var(--text-muted)', cursor: 'pointer' }} 
-              onClick={() => setSearchTerm('')}
-            />
+            <button className="global-search-clear-btn" onClick={() => setSearchTerm('')}>
+              <X size={12} />
+            </button>
           )}
         </div>
 
@@ -1004,21 +1151,44 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
 
                 {/* Line-by-line editor list */}
                 <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, paddingBottom: '8rem' }}>
-                  {lines.map((line, idx) => (
-                    <LiveEditableLine 
-                      key={idx}
-                      text={line}
-                      index={idx}
-                      isFocused={focusedLineIndex === idx}
-                      isCodeBlock={codeBlockLineIndices.has(idx)}
-                      onFocus={() => setFocusedLineIndex(idx)}
-                      onBlur={(val) => handleLineBlur(idx, val)}
-                      onKeyDown={(val, e) => handleLineKeyDown(idx, val, e)}
-                      onWikiLinkClick={handleWikiLinkClick}
-                      onTagClick={(tag) => setSelectedTag(tag)}
-                      onToggleCheckbox={(checked) => handleToggleCheckboxInLine(idx, checked)}
-                    />
-                  ))}
+                  {lines.map((line, idx) => {
+                    const tableInfo = tableLineMap[idx];
+                    if (tableInfo) {
+                      const isTableEdited = focusedLineIndex !== null && focusedLineIndex >= tableInfo.start && focusedLineIndex <= tableInfo.end;
+                      if (!isTableEdited) {
+                        if (tableInfo.isStart) {
+                          return (
+                            <div key={idx} onClick={() => setFocusedLineIndex(idx)} style={{ cursor: 'text', width: '100%' }}>
+                              <CompiledTable 
+                                headers={tableInfo.table.headers}
+                                rows={tableInfo.table.rows}
+                                alignments={tableInfo.table.alignments}
+                                onWikiLinkClick={handleWikiLinkClick}
+                                onTagClick={(tag) => setSelectedTag(tag)}
+                              />
+                            </div>
+                          );
+                        }
+                        return null;
+                      }
+                    }
+
+                    return (
+                      <LiveEditableLine 
+                        key={idx}
+                        text={line}
+                        index={idx}
+                        isFocused={focusedLineIndex === idx}
+                        isCodeBlock={codeBlockLineIndices.has(idx)}
+                        onFocus={() => setFocusedLineIndex(idx)}
+                        onBlur={(val) => handleLineBlur(idx, val)}
+                        onKeyDown={(val, e) => handleLineKeyDown(idx, val, e)}
+                        onWikiLinkClick={handleWikiLinkClick}
+                        onTagClick={(tag) => setSelectedTag(tag)}
+                        onToggleCheckbox={(checked) => handleToggleCheckboxInLine(idx, checked)}
+                      />
+                    );
+                  })}
                 </div>
               </div>
 

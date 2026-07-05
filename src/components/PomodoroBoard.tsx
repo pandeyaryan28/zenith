@@ -17,7 +17,8 @@ import {
   Volume2,
   VolumeX,
   Music,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 import { deletePomodoroSession } from '../services/pomodoroService';
 
@@ -336,20 +337,26 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
               </button>
 
               {isTaskSelectorOpen && (
-                <div style={{ position: 'absolute', bottom: '100%', left: 0, width: '100%', maxHeight: '180px', background: 'rgba(15, 18, 30, 0.95)', backdropFilter: 'blur(10px)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', zIndex: 10, display: 'flex', flexDirection: 'column', marginBottom: '6px', padding: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.5rem', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', marginBottom: '0.5rem' }}>
-                    <Search size={12} />
+                <div className="global-search-results-overlay" style={{ bottom: '100%', top: 'auto', maxHeight: '160px', padding: '0.4rem', marginBottom: '6px' }}>
+                  <div className="global-search-container" style={{ height: '28px', marginBottom: '0.4rem' }}>
+                    <Search size={11} className="global-search-icon" style={{ left: '0.5rem' }} />
                     <input 
                       type="text" 
                       placeholder="Search active tasks..." 
                       value={searchQuery} 
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      style={{ border: 'none', background: 'transparent', fontSize: '0.75rem', width: '100%', height: 'auto', padding: '0.2rem 0' }}
+                      className="global-search-input"
+                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem 0.2rem 1.8rem !important' }}
                     />
+                    {searchQuery && (
+                      <button className="global-search-clear-btn" style={{ right: '0.5rem' }} onClick={() => setSearchQuery('')}>
+                        <X size={10} />
+                      </button>
+                    )}
                   </div>
-                  <div className="custom-scroll" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <div className="custom-scroll" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                     {filteredTasks.length === 0 ? (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.5rem' }}>No active tasks.</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.4rem' }}>No active tasks.</span>
                     ) : (
                       filteredTasks.map(task => {
                         const isSelected = selectedTaskIds.includes(task.id);
@@ -357,9 +364,10 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
                           <button
                             key={task.id}
                             onClick={() => toggleTaskSelection(task.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem', borderRadius: '4px', background: isSelected ? 'rgba(99, 102, 241, 0.1)' : 'transparent', color: isSelected ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.75rem', textAlign: 'left', width: '100%', cursor: 'pointer' }}
+                            className={`global-search-result-item ${isSelected ? 'active' : ''}`}
+                            style={{ fontSize: '0.7rem', padding: '0.3rem 0.5rem' }}
                           >
-                            {isSelected ? <CheckSquare size={12} /> : <Square size={12} />}
+                            {isSelected ? <CheckSquare size={10} /> : <Square size={10} />}
                             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
                           </button>
                         );

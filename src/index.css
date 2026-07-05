@@ -1407,3 +1407,171 @@ html[data-style="retro"] .live-editable-line.active-edit {
   border: 1px dashed var(--color-primary) !important;
   border-radius: 0px !important;
 }
+
+/* =========================================================================
+   Global Unified Search Styling
+   ========================================================================= */
+
+.global-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(0, 0, 0, 0.12);
+  transition: all var(--transition-fast);
+}
+
+.global-search-container:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.global-search-input {
+  border: none !important;
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  font-size: 0.82rem !important;
+  width: 100%;
+  outline: none !important;
+  padding: 0.5rem 0.5rem 0.5rem 2.2rem !important;
+  box-shadow: none !important;
+}
+
+.global-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.global-search-clear-btn {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+
+.global-search-results-overlay {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  background: var(--bg-card);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+}
+
+.global-search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.global-search-result-item:hover {
+  background: var(--bg-surface-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.global-search-result-item.active {
+  background: var(--color-primary-glow) !important;
+  color: var(--color-primary) !important;
+  font-weight: 600;
+}
+
+/* Light theme search correction */
+html[data-theme="light"] .global-search-container {
+  background: rgba(0, 0, 0, 0.04);
+}
+html[data-theme="light"] .global-search-container:focus-within {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Neumorphism Overrides */
+html[data-style="neumorphism"] .global-search-container {
+  border: none !important;
+  box-shadow: var(--nm-shadow-inset) !important;
+  background: var(--bg-base) !important;
+  border-radius: var(--radius-md) !important;
+}
+html[data-style="neumorphism"] .global-search-results-overlay {
+  border: none !important;
+  background: var(--bg-card) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: var(--radius-lg) !important;
+}
+html[data-style="neumorphism"] .global-search-result-item.active {
+  background: transparent !important;
+  box-shadow: var(--nm-shadow-inset) !important;
+  color: var(--color-primary) !important;
+}
+
+/* Sleek Minimalist Overrides */
+html[data-style="minimalist"] .global-search-container {
+  border-radius: 0px !important;
+  border: 1px solid var(--border-color) !important;
+  background: transparent !important;
+}
+html[data-style="minimalist"] .global-search-results-overlay {
+  border-radius: 0px !important;
+  border: 2px solid var(--border-color) !important;
+  background: var(--bg-card) !important;
+  box-shadow: none !important;
+}
+html[data-style="minimalist"] .global-search-result-item {
+  border-radius: 0px !important;
+}
+html[data-style="minimalist"] .global-search-result-item.active {
+  background: var(--color-primary) !important;
+  color: var(--bg-base) !important;
+}
+
+/* Retro Terminal Overrides */
+html[data-style="retro"] .global-search-container {
+  border-radius: 0px !important;
+  border: 1px dashed var(--border-color) !important;
+  background: var(--bg-base) !important;
+}
+html[data-style="retro"] .global-search-results-overlay {
+  border-radius: 0px !important;
+  border: 2px solid var(--color-primary) !important;
+  background: var(--bg-base) !important;
+  box-shadow: none !important;
+}
+html[data-style="retro"] .global-search-result-item {
+  border-radius: 0px !important;
+  color: var(--color-primary) !important;
+}
+html[data-style="retro"] .global-search-result-item:hover {
+  background: rgba(0, 255, 0, 0.04) !important;
+}
+html[data-style="retro"] .global-search-result-item.active {
+  background: var(--color-primary-glow) !important;
+  border: 1px dashed var(--color-primary) !important;
+}
+
