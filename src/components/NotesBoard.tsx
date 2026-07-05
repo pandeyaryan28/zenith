@@ -1193,71 +1193,55 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
               </div>
 
               {/* Floating Bottom Formatting Bar (Centered in the editor scroll area) */}
-              <div style={{
-                position: 'absolute',
-                bottom: '2rem',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                padding: '0.35rem',
-                borderRadius: 'var(--radius-md)',
-                background: 'rgba(15,15,20,0.8)',
-                backdropFilter: 'blur(10px)',
-                WebkitBackdropFilter: 'blur(10px)',
-                border: '1px solid var(--border-color)',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-                zIndex: 10
-              }}>
+              <div className="floating-formatting-bar">
                 <button 
                   onClick={() => insertFormatting('**', '**')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Bold"
                 >
-                  <Bold size={13} />
+                  <Bold size={14} />
                 </button>
                 <button 
                   onClick={() => insertFormatting('*', '*')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Italic"
                 >
-                  <Italic size={13} />
+                  <Italic size={14} />
                 </button>
                 <button 
                   onClick={() => insertFormatting('# ')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Header"
                 >
-                  <Heading size={13} />
+                  <Heading size={14} />
                 </button>
                 <button 
                   onClick={() => insertFormatting('- [ ] ')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Task Checklist"
                 >
-                  <CheckSquare size={13} />
+                  <CheckSquare size={14} />
                 </button>
                 <button 
                   onClick={() => insertFormatting('- ')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Bullet List"
                 >
-                  <List size={13} />
+                  <List size={14} />
                 </button>
                 <button 
                   onClick={() => insertFormatting('```\n', '\n```')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Code Block"
                 >
-                  <Code size={13} />
+                  <Code size={14} />
                 </button>
                 <button 
                   onClick={() => insertFormatting('> [!NOTE]\n> ')} 
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', padding: '0.3rem 0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  className="formatting-btn"
                   title="Callout Box"
                 >
-                  <Quote size={13} />
+                  <Quote size={14} />
                 </button>
               </div>
             </div>

@@ -947,9 +947,9 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   width: 26px;
   height: 26px;
   border-radius: var(--radius-sm);
-  background: rgba(15, 15, 20, 0.75);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: var(--bg-surface-hover);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
   display: flex;
@@ -969,6 +969,48 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   background: var(--color-danger);
   color: #fff;
   border-color: var(--color-danger);
+}
+
+/* Floating Bottom Formatting Bar inside WYSIWYG Editor */
+.floating-formatting-bar {
+  position: absolute;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-lg);
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.formatting-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+
+.formatting-btn:hover {
+  background: var(--bg-surface-hover);
+  color: var(--color-primary);
+}
+
+.formatting-btn svg {
+  color: inherit;
 }
 
 /* Centered Bottom Navigation Dock */
