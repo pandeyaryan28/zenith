@@ -581,12 +581,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   // =========================================================================
 
   return (
-    <div style={{ display: 'flex', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', height: '100%', overflow: 'hidden', width: '100%' }}>
       
       {/* Custom styles inject */}
       <style>{`
         .task-row:hover {
-          background: rgba(255, 255, 255, 0.02) !important;
+          background: rgba(255, 255, 255, 0.025) !important;
         }
         .task-row:hover .task-actions {
           opacity: 1 !important;
@@ -603,15 +603,28 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         @media (max-width: 768px) {
           .task-split-container {
             flex-direction: column !important;
+            padding: 0.5rem !important;
+            gap: 0.5rem !important;
+          }
+          .task-list-wrapper {
+            max-width: 100% !important;
+            height: 100% !important;
+          }
+          .task-list-island {
+            max-width: 100% !important;
+            height: 100% !important;
           }
           .task-details-drawer {
             position: absolute !important;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 100% !important;
+            top: 0.5rem !important;
+            right: 0.5rem !important;
+            bottom: 0.5rem !important;
+            left: 0.5rem !important;
+            width: auto !important;
             max-width: 100% !important;
-            z-index: 100;
+            z-index: 100 !important;
+            height: calc(100% - 1rem) !important;
+            border-radius: 16px !important;
           }
         }
       `}</style>
@@ -624,23 +637,40 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           width: '100%',
           height: '100%',
           overflow: 'hidden',
-          position: 'relative'
+          position: 'relative',
+          padding: '1rem',
+          gap: '1rem',
+          boxSizing: 'border-box'
         }}
       >
-        {/* Left Column: List Pane */}
+        {/* Left Column Wrapper (for centering list) */}
         <div 
-          className="glass-panel" 
+          className="task-list-wrapper"
           style={{ 
             flex: 1, 
-            display: 'grid', 
-            gridTemplateRows: 'auto auto 1fr', 
+            display: 'flex', 
+            justifyContent: 'center', 
             height: '100%', 
-            overflow: 'hidden',
-            borderRadius: selectedTask ? 'var(--radius-md) 0 0 var(--radius-md)' : 'var(--radius-md)',
-            borderRight: selectedTask ? 'none' : '1px solid var(--border-color)',
-            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+            minWidth: 0 
           }}
         >
+          {/* Left Column: List Pane (Floating Island) */}
+          <div 
+            className="task-list-island glass-panel" 
+            style={{ 
+              width: '100%',
+              maxWidth: selectedTask ? '600px' : '680px',
+              display: 'grid', 
+              gridTemplateRows: 'auto auto 1fr', 
+              height: '100%', 
+              overflow: 'hidden',
+              borderRadius: '16px',
+              border: '1px solid var(--border-color)',
+              background: 'var(--bg-surface)',
+              boxShadow: 'var(--shadow-lg)',
+              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+          >
           {/* Header Row */}
           <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
             
@@ -1041,26 +1071,28 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             )}
           </div>
         </div>
+      </div>
 
-        {/* Right Column: Slide-out Details Drawer */}
-        {selectedTask && (
-          <div 
-            className="task-details-drawer glass-panel"
-            style={{
-              width: '380px',
-              borderLeft: '1px solid var(--border-color)',
-              background: 'var(--bg-surface)',
-              backdropFilter: 'var(--glass-blur)',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              borderRadius: '0 var(--radius-md) var(--radius-md) 0',
-              zIndex: 10,
-              boxShadow: '-4px 0 20px rgba(0,0,0,0.3)',
-              transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
+      {/* Right Column: Slide-out Details Drawer (Floating Island) */}
+      {selectedTask && (
+        <div 
+          className="task-details-drawer glass-panel"
+          style={{
+            width: '380px',
+            border: '1px solid var(--border-color)',
+            background: 'var(--bg-surface)',
+            backdropFilter: 'var(--glass-blur)',
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            borderRadius: '16px',
+            zIndex: 10,
+            boxShadow: 'var(--shadow-lg)',
+            transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+            flexShrink: 0
+          }}
+        >
             {/* Drawer Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--color-primary)' }}>
