@@ -1008,7 +1008,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                     borderRadius: '4px',
                     cursor: 'pointer',
                     background: !selectedTag ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.03)',
-                    border: '1px solid ' + (!selectedTag ? 'var(--color-primary)' : 'var(--border-color)'),
+                    border: '1px solid ' + (!selectedTag ? 'var(--border-active)' : 'var(--border-color)'),
                     color: !selectedTag ? 'var(--color-primary)' : 'var(--text-secondary)'
                   }}
                 >
@@ -1029,7 +1029,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                         borderRadius: '4px',
                         cursor: 'pointer',
                         background: active ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.03)',
-                        border: '1px solid ' + (active ? 'var(--color-primary)' : 'var(--border-color)'),
+                        border: '1px solid ' + (active ? 'var(--border-active)' : 'var(--border-color)'),
                         color: active ? 'var(--color-primary)' : 'var(--text-secondary)'
                       }}
                     >

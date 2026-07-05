@@ -843,14 +843,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                   onSubmit={handleCreateTask}
                   style={{
                     background: 'rgba(0,0,0,0.2)',
-                    border: '1px solid var(--color-primary)',
+                    border: '1px solid var(--border-active)',
                     borderRadius: 'var(--radius-sm)',
                     padding: '0.65rem 0.85rem',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.5rem',
                     marginTop: '0.2rem',
-                    boxShadow: 'var(--shadow-glow)'
+                    boxShadow: 'var(--shadow-md)'
                   }}
                 >
                   <input 
