@@ -635,6 +635,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 setPomoSelectedTaskIds={setPomoSelectedTaskIds}
                 startPausePomo={startPausePomo}
                 resetPomo={resetPomo}
+                onAddTask={onAddTask}
+                onToggleTask={onToggleTask}
+                onAddEvent={onAddEvent}
+                notes={notes}
+                onAddNote={onAddNote}
+                onUpdateNote={onUpdateNote}
+                onDeleteNote={onDeleteNote}
+                activeSoundId={activeSoundId}
+                toggleAmbientSound={toggleAmbientSound}
+                skipPomo={skipPomo}
+                adjustPomoDuration={adjustPomoDuration}
+                handlePresetSelect={handlePresetSelect}
               />
             ) : activePage === 'habits' ? (
               <HabitsBoard
