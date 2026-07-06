@@ -38,7 +38,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day'>('month');
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'day' | 'schedule'>('month');
   
   // Modal states
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -89,7 +89,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
   // Month navigation helpers
   const handlePrev = () => {
-    if (viewMode === 'month') {
+    if (viewMode === 'month' || viewMode === 'schedule') {
       setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
     } else if (viewMode === 'week') {
       const prevD = new Date(currentDate);
@@ -103,7 +103,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   };
 
   const handleNext = () => {
-    if (viewMode === 'month') {
+    if (viewMode === 'month' || viewMode === 'schedule') {
       setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
     } else if (viewMode === 'week') {
       const nextD = new Date(currentDate);
@@ -324,6 +324,39 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  // Helper for schedule view: Group events by date string (YYYY-MM-DD) for the current month
+  const getScheduleEvents = () => {
+    const filtered = events.filter(event => {
+      if (event.localDeleted) return false;
+      const startStr = event.start.dateTime || event.start.date;
+      if (!startStr) return false;
+      const d = new Date(startStr);
+      if (isNaN(d.getTime())) return false;
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
+
+    const groups: { [dateStr: string]: LocalEvent[] } = {};
+    filtered.forEach(event => {
+      const startStr = event.start.dateTime || event.start.date || '';
+      const datePart = startStr.split('T')[0];
+      if (!groups[datePart]) {
+        groups[datePart] = [];
+      }
+      groups[datePart].push(event);
+    });
+
+    const sortedDates = Object.keys(groups).sort();
+    sortedDates.forEach(dateStr => {
+      groups[dateStr].sort((a, b) => {
+        const aTime = a.start.dateTime ? new Date(a.start.dateTime).getTime() : 0;
+        const bTime = b.start.dateTime ? new Date(b.start.dateTime).getTime() : 0;
+        return aTime - bTime;
+      });
+    });
+
+    return { sortedDates, groups };
+  };
+
   return (
     <div className="glass-panel" style={{ display: 'grid', gridTemplateRows: 'auto 1fr', height: '100%', overflow: 'hidden', position: 'relative' }}>
       
@@ -337,13 +370,14 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             {viewMode === 'month' && `${monthNames[month]} ${year}`}
             {viewMode === 'week' && `Week of ${monthNames[getDaysOfWeek(currentDate)[0].getMonth()]} ${getDaysOfWeek(currentDate)[0].getDate()}, ${getDaysOfWeek(currentDate)[0].getFullYear()}`}
             {viewMode === 'day' && `${currentDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`}
+            {viewMode === 'schedule' && `Schedule for ${monthNames[month]} ${year}`}
           </h2>
         </div>
         
         {/* Toggle view buttons & navigation */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '0.2rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-            {(['month', 'week', 'day'] as const).map(mode => (
+            {(['month', 'week', 'day', 'schedule'] as const).map(mode => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
@@ -683,6 +717,135 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
             </div>
           </div>
         )}
+
+        {/* =========================================================================
+           SCHEDULE VIEW
+           ========================================================================= */}
+        {viewMode === 'schedule' && (() => {
+          const { sortedDates, groups } = getScheduleEvents();
+          return (
+            <div className="custom-scroll" style={{ height: '100%', overflowY: 'auto', padding: '1.5rem 2rem' }}>
+              {sortedDates.length === 0 ? (
+                <div style={{ maxWidth: '800px', margin: '2rem auto' }}>
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', padding: '3rem 2rem', textAlign: 'center', borderRadius: 'var(--radius-md)', background: 'rgba(255,255,255,0.01)', border: '1px dashed var(--border-color)' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--color-primary-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <CalendarIcon size={24} style={{ color: 'var(--color-primary)' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>No events scheduled</h3>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Your agenda is clear for {monthNames[month]} {year}.</p>
+                    </div>
+                    <button 
+                      onClick={() => handleOpenAddModalForDate(new Date(year, month, 1))} 
+                      className="btn-primary" 
+                      style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--grad-primary)', border: 'none' }}
+                    >
+                      <Plus size={16} />
+                      <span>Add Event</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  {sortedDates.map(dateStr => {
+                    const dateObj = new Date(dateStr + 'T00:00:00');
+                    const dayIsToday = isDateToday(dateObj);
+
+                    return (
+                      <div key={dateStr} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '1.5rem', alignItems: 'start', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
+                        {/* Left Column: Date Indicator */}
+                        <div 
+                          onClick={() => handleOpenAddModalForDate(dateObj)}
+                          style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', cursor: 'pointer' }}
+                          title="Click to schedule event on this day"
+                        >
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: dayIsToday ? 'var(--color-primary)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {dateObj.toLocaleDateString([], { weekday: 'short' })}
+                          </span>
+                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: dayIsToday ? 'var(--color-primary)' : 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {dateObj.getDate()}
+                            {dayIsToday && (
+                              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', background: 'var(--color-primary)', padding: '0.15rem 0.4rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+                                Today
+                              </span>
+                            )}
+                          </span>
+                        </div>
+
+                        {/* Right Column: Events List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          {groups[dateStr].map(event => {
+                            const catId = getEventCategory(event);
+                            const cat = getCategoryDetails(catId);
+                            const start = new Date(event.start.dateTime || '');
+                            const end = new Date(event.end.dateTime || '');
+                            const durationMin = isNaN(start.getTime()) || isNaN(end.getTime()) ? null : Math.round((end.getTime() - start.getTime()) / 60000);
+
+                            return (
+                              <div
+                                key={event.id}
+                                onClick={(e) => handleOpenDetailModal(event, e)}
+                                style={{
+                                  padding: '1rem 1.25rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: cat.bg,
+                                  border: `1px solid ${cat.border}22`,
+                                  borderLeft: `4px solid ${cat.color}`,
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease-in-out'
+                                }}
+                                className="hover-scale"
+                              >
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: 0, paddingRight: '1rem' }}>
+                                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {event.summary}
+                                  </span>
+                                  {event.description && (
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {cleanDescription(event.description)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                                  <span style={{
+                                    fontSize: '0.7rem',
+                                    color: cat.color,
+                                    background: `${cat.color}15`,
+                                    padding: '0.15rem 0.45rem',
+                                    borderRadius: '4px',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.02em'
+                                  }}>
+                                    {cat.label}
+                                  </span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'end', gap: '0.15rem' }}>
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
+                                      <Clock size={12} />
+                                      {formatEventTime(event)}
+                                    </span>
+                                    {durationMin !== null && (
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                        {durationMin >= 60 ? `${Math.floor(durationMin / 60)}h ${durationMin % 60 > 0 ? `${durationMin % 60}m` : ''}` : `${durationMin}m`}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* =========================================================================
