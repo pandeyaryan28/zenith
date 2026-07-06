@@ -147,12 +147,12 @@ const CompiledTable: React.FC<CompiledTableProps> = ({
   onTagClick
 }) => {
   return (
-    <div style={{ width: '100%', overflowX: 'auto', margin: '0.85rem 0' }} className="custom-scroll">
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', margin: '0.5rem 0' }}>
+    <div className="compiled-table-container custom-scroll">
+      <table className="compiled-table">
         <thead>
-          <tr style={{ borderBottom: '2px solid var(--border-color)', background: 'rgba(128,128,128,0.03)' }}>
+          <tr>
             {headers.map((h, idx) => (
-              <th key={idx} style={{ textAlign: alignments[idx] || 'left', padding: '0.5rem 0.75rem', fontWeight: 700, border: '1px solid var(--border-color)' }}>
+              <th key={idx} style={{ textAlign: alignments[idx] || 'left' }}>
                 {parseInlineMarkdown(h, onWikiLinkClick, onTagClick)}
               </th>
             ))}
@@ -160,9 +160,9 @@ const CompiledTable: React.FC<CompiledTableProps> = ({
         </thead>
         <tbody>
           {rows.map((row, rIdx) => (
-            <tr key={rIdx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <tr key={rIdx}>
               {row.map((cell, cIdx) => (
-                <td key={cIdx} style={{ textAlign: alignments[cIdx] || 'left', padding: '0.5rem 0.75rem', border: '1px solid var(--border-color)' }}>
+                <td key={cIdx} style={{ textAlign: alignments[cIdx] || 'left' }}>
                   {parseInlineMarkdown(cell, onWikiLinkClick, onTagClick)}
                 </td>
               ))}
@@ -512,7 +512,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
         }
       } else {
         if (inTable) {
-          if (tableLines.length >= 2 && /^\s*\|?\s*(:?-+:?\s*\|?)+\s*$/.test(tableLines[1])) {
+          if (tableLines.length >= 2 && /^\s*\|?\s*(?:\s*:?-+:?\s*\|?)+\s*$/.test(tableLines[1])) {
             const headerLine = tableLines[0];
             const dividerLine = tableLines[1];
             const rowLines = tableLines.slice(2);
@@ -542,7 +542,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
       }
     });
 
-    if (inTable && tableLines.length >= 2 && /^\s*\|?\s*(:?-+:?\s*\|?)+\s*$/.test(tableLines[1])) {
+    if (inTable && tableLines.length >= 2 && /^\s*\|?\s*(?:\s*:?-+:?\s*\|?)+\s*$/.test(tableLines[1])) {
       const headerLine = tableLines[0];
       const dividerLine = tableLines[1];
       const rowLines = tableLines.slice(2);

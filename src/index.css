@@ -1713,4 +1713,64 @@ html[data-style="retro"] .global-search-result-item.active {
   font-family: monospace;
 }
 
+/* =========================================================================
+   Compiled Markdown Table Styling
+   ========================================================================= */
+
+.compiled-table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: 1rem 0;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.compiled-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.compiled-table th {
+  padding: 0.65rem 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface-hover);
+  border-bottom: 2px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+  font-family: var(--font-display);
+}
+
+.compiled-table th:last-child {
+  border-right: none;
+}
+
+.compiled-table td {
+  padding: 0.6rem 0.85rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+  border-right: 1px solid var(--border-color);
+}
+
+.compiled-table td:last-child {
+  border-right: none;
+}
+
+.compiled-table tr:last-child td {
+  border-bottom: none;
+}
+
+.compiled-table tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.compiled-table tr:hover {
+  background: var(--bg-surface-hover);
+}
+
+
 
