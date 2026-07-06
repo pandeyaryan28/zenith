@@ -40,6 +40,74 @@ export interface LocalEvent extends GoogleEvent {
   localDeleted?: boolean;
 }
 
+export const syncTaskToCalendarEvent = async (
+  userId: string,
+  task: LocalTask
+): Promise<void> => {
+  const eventId = `task-event-${task.id}`;
+  const docRef = doc(db, 'users', userId, 'events', eventId);
+
+  // If the task is deleted or has no due date:
+  if (task.localDeleted || task.deleted || !task.due) {
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const eventData = docSnap.data() as LocalEvent;
+      if (eventData.synced) {
+        // Mark as deleted for syncEvents to clean up from Google Calendar
+        await setDoc(docRef, {
+          ...eventData,
+          localDeleted: true,
+          pendingChange: true,
+          updated: new Date().toISOString()
+        });
+      } else {
+        await deleteDoc(docRef);
+      }
+      // Trigger syncEvents to update Google Calendar
+      syncEvents(userId).catch(console.error);
+    }
+    return;
+  }
+
+  // Determine title based on completion status
+  const isCompleted = task.status === 'completed';
+  const prefix = isCompleted ? '✓ Task: ' : 'Task: ';
+  const summary = `${prefix}${task.title}`;
+  const description = task.notes || 'Synced from Google Tasks';
+
+  // Format start and end date/time
+  const startISO = task.due;
+  const endDate = new Date(task.due);
+  endDate.setMinutes(endDate.getMinutes() + 30);
+  const endISO = endDate.toISOString();
+
+  // Create/update the calendar event
+  const docSnap = await getDoc(docRef);
+  const existingEvent = docSnap.exists() ? (docSnap.data() as LocalEvent) : null;
+
+  const eventData: LocalEvent = {
+    id: eventId,
+    summary,
+    description,
+    start: {
+      dateTime: startISO
+    },
+    end: {
+      dateTime: endISO
+    },
+    calendarId: 'primary',
+    synced: existingEvent ? existingEvent.synced : false,
+    pendingChange: true,
+    updated: new Date().toISOString()
+  };
+
+  await setDoc(docRef, eventData);
+
+  // Trigger syncEvents to update Google Calendar
+  syncEvents(userId).catch(console.error);
+};
+
+
 /* =========================================================================
    Task Sync Services
    ========================================================================= */
@@ -82,22 +150,28 @@ export const syncTasks = async (userId: string): Promise<void> => {
               
               // We delete the temporary local doc and write the correct one with Google's ID
               await deleteDoc(doc(db, 'users', userId, 'tasks', id));
-              await setDoc(doc(db, 'users', userId, 'tasks', newGoogleTask.id), {
+              const taskObj: LocalTask = {
                 ...newGoogleTask,
                 listId: list.id,
                 synced: true,
                 pendingChange: false
-              });
+              };
+              await setDoc(doc(db, 'users', userId, 'tasks', newGoogleTask.id), taskObj);
+              // Delete temp event and sync new real event
+              await deleteDoc(doc(db, 'users', userId, 'events', `task-event-${id}`));
+              await syncTaskToCalendarEvent(userId, taskObj);
             } else {
               // Update on Google
               const { id: taskId, synced, pendingChange, listId, ...googleData } = localTask;
               const updatedGoogleTask = await updateGoogleTask(list.id, id, googleData);
-              await setDoc(doc(db, 'users', userId, 'tasks', id), {
+              const taskObj: LocalTask = {
                 ...updatedGoogleTask,
                 listId: list.id,
                 synced: true,
                 pendingChange: false
-              }, { merge: true });
+              };
+              await setDoc(doc(db, 'users', userId, 'tasks', id), taskObj, { merge: true });
+              await syncTaskToCalendarEvent(userId, taskObj);
             }
           } catch (err) {
             console.error(`Failed to sync task ${id} to Google:`, err);
@@ -115,24 +189,28 @@ export const syncTasks = async (userId: string): Promise<void> => {
         
         if (!localTask) {
           // If not in local cache, write it
-          await setDoc(doc(db, 'users', userId, 'tasks', gTask.id), {
+          const taskObj: LocalTask = {
             ...gTask,
             listId: list.id,
             synced: true,
             pendingChange: false
-          });
+          };
+          await setDoc(doc(db, 'users', userId, 'tasks', gTask.id), taskObj);
+          await syncTaskToCalendarEvent(userId, taskObj);
         } else if (!localTask.pendingChange) {
           // If local copy is not pending changes, check if Google copy is newer
           const localUpdated = new Date(localTask.updated).getTime();
           const googleUpdated = new Date(gTask.updated).getTime();
           
           if (googleUpdated > localUpdated || localTask.title !== gTask.title || localTask.status !== gTask.status || localTask.due !== gTask.due) {
-            await setDoc(doc(db, 'users', userId, 'tasks', gTask.id), {
+            const taskObj: LocalTask = {
               ...gTask,
               listId: list.id,
               synced: true,
               pendingChange: false
-            }, { merge: true });
+            };
+            await setDoc(doc(db, 'users', userId, 'tasks', gTask.id), taskObj, { merge: true });
+            await syncTaskToCalendarEvent(userId, taskObj);
           }
         }
       }
@@ -141,6 +219,7 @@ export const syncTasks = async (userId: string): Promise<void> => {
       for (const [id, localTask] of localTasksMap.entries()) {
         if (localTask.synced && !localTask.pendingChange && !activeGoogleIds.has(id)) {
           await deleteDoc(doc(db, 'users', userId, 'tasks', id));
+          await syncTaskToCalendarEvent(userId, { ...localTask, localDeleted: true });
         }
       }
     }
@@ -169,6 +248,7 @@ export const addLocalTask = async (
   };
 
   await setDoc(doc(db, 'users', userId, 'tasks', tempId), newTask);
+  await syncTaskToCalendarEvent(userId, newTask);
   
   // Trigger async sync in background
   syncTasks(userId).catch(console.error);
@@ -184,12 +264,20 @@ export const updateLocalTask = async (
   taskData: Partial<GoogleTask>
 ): Promise<void> => {
   const nowStr = new Date().toISOString();
+  const docRef = doc(db, 'users', userId, 'tasks', taskId);
+  const docSnap = await getDoc(docRef);
   
-  await setDoc(doc(db, 'users', userId, 'tasks', taskId), {
-    ...taskData,
-    updated: nowStr,
-    pendingChange: true
-  }, { merge: true });
+  if (docSnap.exists()) {
+    const existing = docSnap.data() as LocalTask;
+    const updatedTask = {
+      ...existing,
+      ...taskData,
+      updated: nowStr,
+      pendingChange: true
+    };
+    await setDoc(docRef, updatedTask, { merge: true });
+    await syncTaskToCalendarEvent(userId, updatedTask);
+  }
 
   // Trigger sync in background
   syncTasks(userId).catch(console.error);
@@ -210,13 +298,17 @@ export const deleteLocalTask = async (
   if (!task.synced) {
     // If it was never synced, just delete it locally
     await deleteDoc(docRef);
+    await deleteDoc(doc(db, 'users', userId, 'events', `task-event-${taskId}`));
   } else {
     // Mark as deleted locally so sync can delete it on Google later
-    await updateDoc(docRef, {
+    const updated = {
+      ...task,
       localDeleted: true,
       pendingChange: true,
       updated: new Date().toISOString()
-    });
+    };
+    await updateDoc(docRef, updated);
+    await syncTaskToCalendarEvent(userId, updated);
   }
 
   // Trigger sync in background
