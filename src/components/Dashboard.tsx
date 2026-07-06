@@ -82,6 +82,7 @@ interface DashboardProps {
   toggleAmbientSound: (soundId: string, url: string) => void;
   handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
   handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
+  handleDiscardPartialSession: () => Promise<void>;
   onPomoSettingsChange: () => void;
   notes: LocalNote[];
   onAddNote: (noteId: string, title: string, content: string) => Promise<string>;
@@ -135,6 +136,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
   toggleAmbientSound,
   handlePresetSelect,
   handleSavePartialSession,
+  handleDiscardPartialSession,
   onPomoSettingsChange,
   notes,
   onAddNote,
@@ -648,6 +650,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 adjustPomoDuration={adjustPomoDuration}
                 handlePresetSelect={handlePresetSelect}
                 handleSavePartialSession={handleSavePartialSession}
+                handleDiscardPartialSession={handleDiscardPartialSession}
               />
             ) : activePage === 'habits' ? (
               <HabitsBoard
@@ -680,6 +683,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 toggleAmbientSound={toggleAmbientSound}
                 handlePresetSelect={handlePresetSelect}
                 handleSavePartialSession={handleSavePartialSession}
+                handleDiscardPartialSession={handleDiscardPartialSession}
               />
             ) : activePage === 'notes' ? (
               <NotesBoard

@@ -74,6 +74,7 @@ interface DashboardOverviewProps {
   adjustPomoDuration: (amount: number) => void;
   handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
   handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
+  handleDiscardPartialSession: () => Promise<void>;
 }
 
 const QUOTES = [
@@ -121,7 +122,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   skipPomo,
   adjustPomoDuration,
   handlePresetSelect,
-  handleSavePartialSession
+  handleSavePartialSession,
+  handleDiscardPartialSession
 }) => {
   // Live Date and Time
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -153,9 +155,9 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     setShowPartialModal(false);
   };
 
-  const handleDiscardPartial = () => {
+  const handleDiscardPartial = async () => {
     setShowPartialModal(false);
-    resetPomo(); // Force-reset timer to idle
+    await handleDiscardPartialSession();
   };
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);

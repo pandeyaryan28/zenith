@@ -42,6 +42,7 @@ interface PomodoroBoardProps {
   toggleAmbientSound: (soundId: string, url: string) => void;
   handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
   handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
+  handleDiscardPartialSession: () => Promise<void>;
 }
 
 const AMBIENT_SOUNDS = [
@@ -70,7 +71,8 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
   adjustPomoDuration,
   toggleAmbientSound,
   handlePresetSelect,
-  handleSavePartialSession
+  handleSavePartialSession,
+  handleDiscardPartialSession
 }) => {
   // Local state for task search & selector popup
   const [searchQuery, setSearchQuery] = useState('');
@@ -107,9 +109,9 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
     setShowPartialModal(false);
   };
 
-  const handleDiscardPartial = () => {
+  const handleDiscardPartial = async () => {
     setShowPartialModal(false);
-    resetPomo(); // Call without callback to force-reset timer to idle
+    await handleDiscardPartialSession();
   };
 
   // Task checking list helpers

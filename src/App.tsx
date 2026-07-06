@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { collection, onSnapshot, query } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, setDoc } from 'firebase/firestore';
 import { auth, db, signOutUser, signInWithGoogle } from './firebase';
 import { 
   addLocalTask, 
@@ -32,7 +32,7 @@ import {
   toggleHabitCompletion 
 } from './services/habitService';
 import type { Habit, HabitLog } from './services/habitService';
-import { savePomodoroSession, playNotificationSound } from './services/pomodoroService';
+import { playNotificationSound, deletePomodoroSession } from './services/pomodoroService';
 import type { PomodoroSession } from './services/pomodoroService';
 
 
@@ -100,6 +100,8 @@ function App() {
   const [pomoStartTime, setPomoStartTime] = useState<string | null>(null);
   const [pomoSelectedTaskIds, setPomoSelectedTaskIds] = useState<string[]>([]);
   const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
+  const [activePomoSessionId, setActivePomoSessionId] = useState<string | null>(null);
+  const lastSyncedMinuteRef = useRef<number>(0);
   
   const audioRefs = useRef<{ [id: string]: HTMLAudioElement | null }>({});
   const pomoRestored = useRef(false);
@@ -115,6 +117,7 @@ function App() {
           let finalTimeLeft = saved.timeLeft;
           let finalState = saved.state;
           let finalStartTime = saved.startTime;
+          let finalSessionId = saved.activePomoSessionId || null;
 
           if (saved.state === 'running' && saved.startTime) {
             const elapsed = Math.floor((Date.now() - new Date(saved.startTime).getTime()) / 1000);
@@ -131,7 +134,11 @@ function App() {
                 const taskTitles = selectedTasks.map(t => t.title);
 
                 try {
-                  await savePomodoroSession(user.uid, {
+                  const sId = saved.activePomoSessionId || `pomo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                  const docRef = doc(db, 'users', user.uid, 'pomodoroSessions', sId);
+                  await setDoc(docRef, {
+                    id: sId,
+                    userId: user.uid,
                     startTime: saved.startTime,
                     endTime: endStr,
                     durationMinutes: durationMin,
@@ -145,6 +152,7 @@ function App() {
                 }
               };
               logBackgroundSession();
+              finalSessionId = null;
             } else {
               // Timer is still running, calculate remaining time
               finalTimeLeft = saved.totalDuration - elapsed;
@@ -157,6 +165,7 @@ function App() {
           setPomoTimeLeft(finalTimeLeft);
           setPomoStartTime(finalStartTime);
           setPomoSelectedTaskIds(saved.selectedTaskIds || []);
+          setActivePomoSessionId(finalSessionId);
         } catch (e) {
           console.error("Failed to restore pomodoro state", e);
         }
@@ -174,10 +183,11 @@ function App() {
         timeLeft: pomoTimeLeft,
         startTime: pomoStartTime,
         selectedTaskIds: pomoSelectedTaskIds,
+        activePomoSessionId: activePomoSessionId
       };
       localStorage.setItem(`zenith-active-pomo-${user.uid}`, JSON.stringify(stateToSave));
     }
-  }, [pomoType, pomoState, pomoTotalDuration, pomoStartTime, pomoSelectedTaskIds, user]);
+  }, [pomoType, pomoState, pomoTotalDuration, pomoTimeLeft, pomoStartTime, pomoSelectedTaskIds, activePomoSessionId, user]);
 
   // Sync timeLeft when changing preset or settings while idle
   useEffect(() => {
@@ -213,12 +223,24 @@ function App() {
     }
   };
 
-  // Timer Start Time Initializer
+  // Timer Start Time and Session ID Initializer
   useEffect(() => {
-    if (pomoState === 'running' && !pomoStartTime) {
-      setPomoStartTime(new Date().toISOString());
+    if (pomoState === 'running') {
+      if (!pomoStartTime) {
+        setPomoStartTime(new Date().toISOString());
+      }
+      if (!activePomoSessionId) {
+        setActivePomoSessionId(`pomo-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+      }
     }
-  }, [pomoState, pomoStartTime]);
+  }, [pomoState, pomoStartTime, activePomoSessionId]);
+
+  // Clear last synced minute when returning to idle
+  useEffect(() => {
+    if (pomoState === 'idle') {
+      lastSyncedMinuteRef.current = 0;
+    }
+  }, [pomoState]);
 
   // Timer Tick effect
   useEffect(() => {
@@ -245,6 +267,45 @@ function App() {
     }
   }, [pomoTimeLeft, pomoState]);
 
+  const syncActiveSessionMinutes = async (minutes: number) => {
+    if (!user || !activePomoSessionId || pomoType !== 'work') return;
+    const docRef = doc(db, 'users', user.uid, 'pomodoroSessions', activePomoSessionId);
+    const selectedTasks = tasks.filter(t => pomoSelectedTaskIds.includes(t.id));
+    const taskTitles = selectedTasks.map(t => t.title);
+    const endStr = new Date().toISOString();
+    const finalStartTime = pomoStartTime || new Date(Date.now() - minutes * 60000).toISOString();
+
+    try {
+      await setDoc(docRef, {
+        id: activePomoSessionId,
+        userId: user.uid,
+        startTime: finalStartTime,
+        endTime: endStr,
+        durationMinutes: minutes,
+        taskIds: pomoSelectedTaskIds,
+        taskTitles,
+        type: pomoType,
+        completed: false
+      }, { merge: true });
+    } catch (err) {
+      console.error("Failed to sync active session minutes:", err);
+    }
+  };
+
+  // Sync focus minutes every time a full minute completes
+  useEffect(() => {
+    if (pomoState === 'running' && user && pomoType === 'work') {
+      const timeSpentSeconds = pomoTotalDuration - pomoTimeLeft;
+      if (timeSpentSeconds > 0 && timeSpentSeconds % 60 === 0) {
+        const completedMinutes = timeSpentSeconds / 60;
+        if (completedMinutes !== lastSyncedMinuteRef.current) {
+          lastSyncedMinuteRef.current = completedMinutes;
+          syncActiveSessionMinutes(completedMinutes);
+        }
+      }
+    }
+  }, [pomoTimeLeft, pomoState, user, pomoType, pomoTotalDuration]);
+
   const handleTimerComplete = async () => {
     setPomoState('idle');
     
@@ -261,8 +322,11 @@ function App() {
       const selectedTasks = tasks.filter(t => pomoSelectedTaskIds.includes(t.id));
       const taskTitles = selectedTasks.map(t => t.title);
 
-      if (user) {
-        await savePomodoroSession(user.uid, {
+      if (user && activePomoSessionId) {
+        const docRef = doc(db, 'users', user.uid, 'pomodoroSessions', activePomoSessionId);
+        await setDoc(docRef, {
+          id: activePomoSessionId,
+          userId: user.uid,
           startTime: finalStartTime,
           endTime: endStr,
           durationMinutes: durationMin,
@@ -270,10 +334,12 @@ function App() {
           taskTitles,
           type: pomoType,
           completed: true
-        });
+        }, { merge: true });
       }
     } catch (err) {
       console.error("Failed to save completed Pomodoro session:", err);
+    } finally {
+      setActivePomoSessionId(null);
     }
 
     const nextType = pomoType === 'work' ? 'shortBreak' : 'work';
@@ -297,6 +363,7 @@ function App() {
     setPomoTotalDuration(duration);
     setPomoTimeLeft(duration);
     setPomoStartTime(null);
+    setActivePomoSessionId(null);
   };
 
   const adjustPomoDuration = (amount: number) => {
@@ -314,36 +381,59 @@ function App() {
     }
   };
 
+  const handleDiscardPartialSession = async () => {
+    if (user && activePomoSessionId) {
+      try {
+        await deletePomodoroSession(user.uid, activePomoSessionId);
+      } catch (err) {
+        console.error("Failed to delete discarded partial session:", err);
+      }
+    }
+    setPomoState('idle');
+    const dur = getPresetDuration(pomoType);
+    setPomoTotalDuration(dur);
+    setPomoTimeLeft(dur);
+    setPomoStartTime(null);
+    setActivePomoSessionId(null);
+  };
+
   const resetPomo = (savePartialCallback?: (durationMin: number, startTime: string) => void) => {
     if (pomoState === 'idle') return;
 
     const timeSpentSeconds = pomoTotalDuration - pomoTimeLeft;
-    if (timeSpentSeconds >= 60 && pomoType === 'work' && savePartialCallback) {
-      savePartialCallback(Math.round(timeSpentSeconds / 60), pomoStartTime || new Date().toISOString());
+    const durationMin = Math.floor(timeSpentSeconds / 60);
+
+    if (durationMin > 0 && pomoType === 'work' && savePartialCallback) {
+      savePartialCallback(durationMin, pomoStartTime || new Date().toISOString());
     } else {
-      setPomoState('idle');
-      const dur = getPresetDuration(pomoType);
-      setPomoTotalDuration(dur);
-      setPomoTimeLeft(dur);
-      setPomoStartTime(null);
+      handleDiscardPartialSession();
     }
   };
 
   const handleSavePartialSession = async (durationMin: number, startTimeStr: string) => {
     if (!user) return;
     try {
-      const selectedTasks = tasks.filter(t => pomoSelectedTaskIds.includes(t.id));
-      const taskTitles = selectedTasks.map(t => t.title);
+      if (activePomoSessionId) {
+        if (durationMin > 0) {
+          const docRef = doc(db, 'users', user.uid, 'pomodoroSessions', activePomoSessionId);
+          const selectedTasks = tasks.filter(t => pomoSelectedTaskIds.includes(t.id));
+          const taskTitles = selectedTasks.map(t => t.title);
 
-      await savePomodoroSession(user.uid, {
-        startTime: startTimeStr,
-        endTime: new Date().toISOString(),
-        durationMinutes: durationMin,
-        taskIds: pomoSelectedTaskIds,
-        taskTitles,
-        type: pomoType,
-        completed: false
-      });
+          await setDoc(docRef, {
+            id: activePomoSessionId,
+            userId: user.uid,
+            startTime: startTimeStr,
+            endTime: new Date().toISOString(),
+            durationMinutes: durationMin,
+            taskIds: pomoSelectedTaskIds,
+            taskTitles,
+            type: pomoType,
+            completed: false
+          }, { merge: true });
+        } else {
+          await deletePomodoroSession(user.uid, activePomoSessionId);
+        }
+      }
     } catch (err) {
       console.error("Failed to save partial session:", err);
     } finally {
@@ -352,6 +442,7 @@ function App() {
       setPomoTotalDuration(dur);
       setPomoTimeLeft(dur);
       setPomoStartTime(null);
+      setActivePomoSessionId(null);
     }
   };
 
@@ -360,6 +451,7 @@ function App() {
     if (!confirmSkip) return;
     setPomoState('idle');
     setPomoStartTime(null);
+    setActivePomoSessionId(null);
     const nextType = pomoType === 'work' ? 'shortBreak' : 'work';
     handlePresetSelect(nextType);
   };
@@ -872,6 +964,7 @@ function App() {
       toggleAmbientSound={toggleAmbientSound}
       handlePresetSelect={handlePresetSelect}
       handleSavePartialSession={handleSavePartialSession}
+      handleDiscardPartialSession={handleDiscardPartialSession}
       onPomoSettingsChange={handlePomoSettingsChange}
     />
   );
