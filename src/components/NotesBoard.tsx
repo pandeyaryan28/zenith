@@ -19,7 +19,8 @@ import {
   List,
   Quote,
   CheckSquare,
-  ChevronRight
+  ChevronRight,
+  FileText
 } from 'lucide-react';
 
 interface NotesBoardProps {
@@ -656,6 +657,29 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return Array.from(foldersSet).sort();
   }, [notes]);
 
+  // Extract real folders (excluding fallback 'Notes' and empty strings)
+  const realFolders = useMemo(() => {
+    return allFolders.filter(f => f !== 'Notes' && f.trim() !== '');
+  }, [allFolders]);
+
+  // Extract independent notes (not associated with any folders or in the default 'Notes' folder)
+  const independentNotes = useMemo(() => {
+    return notes.filter(note => {
+      const folder = getFolderStr(note.id);
+      return folder === '' || folder === 'Notes';
+    });
+  }, [notes]);
+
+  // Sort independent notes
+  const sortedIndependentNotes = useMemo(() => {
+    const notesCopy = [...independentNotes];
+    if (sortBy === 'title') {
+      return notesCopy.sort((a, b) => a.title.localeCompare(b.title));
+    } else {
+      return notesCopy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    }
+  }, [independentNotes, sortBy]);
+
   // Plain-text snippet
   const getSnippet = (content: string) => {
     if (!content) return '';
@@ -973,9 +997,9 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
           </div>
         )}
 
-        {activeFolderView === null && !searchTerm ? (
-          // ROOT FOLDERS VIEW
-          allFolders.length === 0 ? (
+        {activeFolderView === null && !searchTerm && !selectedTag ? (
+          // ROOT VIEW: FOLDERS & INDEPENDENT NOTES
+          realFolders.length === 0 && independentNotes.length === 0 ? (
             <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
               <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
                 <Sparkles size={28} />
@@ -988,39 +1012,131 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
               </div>
             </div>
           ) : (
-            allFolders.map(folder => {
-              const folderNotes = notes.filter(n => (getFolderStr(n.id) || 'Notes') === folder);
-              return (
-                <div 
-                  key={folder}
-                  onClick={() => {
-                    setActiveFolderView(folder);
-                    setSelectedFolder(folder);
-                  }}
-                  className="bento-card folder-card"
-                  style={{ gridColumn: 'span 1', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', minHeight: '140px', justifyContent: 'space-between', padding: '1.25rem' }}
-                >
-                  <div className="folder-icon-wrapper">
-                    <Folder size={20} />
+            <>
+              {realFolders.length > 0 && (
+                <>
+                  <div className="notes-section-header">
+                    <Folder size={16} />
+                    <span>Folders</span>
+                    <span className="notes-section-badge">{realFolders.length}</span>
                   </div>
-                  <div style={{ textAlign: 'left' }}>
-                    <h3 className="folder-card-title" style={{ fontSize: '0.95rem', margin: 0 }}>{folder}</h3>
-                    <span className="folder-card-count" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      {folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
-                    </span>
+                  {realFolders.map(folder => {
+                    const folderNotes = notes.filter(n => (getFolderStr(n.id) || 'Notes') === folder);
+                    return (
+                      <div 
+                        key={folder}
+                        onClick={() => {
+                          setActiveFolderView(folder);
+                          setSelectedFolder(folder);
+                        }}
+                        className="bento-card folder-card"
+                        style={{ gridColumn: 'span 1', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', minHeight: '140px', justifyContent: 'space-between', padding: '1.25rem' }}
+                      >
+                        <div className="folder-icon-wrapper">
+                          <Folder size={20} />
+                        </div>
+                        <div style={{ textAlign: 'left' }}>
+                          <h3 className="folder-card-title" style={{ fontSize: '0.95rem', margin: 0 }}>{folder}</h3>
+                          <span className="folder-card-count" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            {folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        {folderNotes.length > 0 && (
+                          <div className="folder-card-preview">
+                            {folderNotes.slice(0, 3).map(n => (
+                              <span key={n.id} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                • {n.title || 'Untitled Note'}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+
+              {independentNotes.length > 0 && (
+                <>
+                  <div className="notes-section-header" style={{ marginTop: realFolders.length > 0 ? '1.5rem' : '0.5rem' }}>
+                    <FileText size={16} />
+                    <span>Independent Notes</span>
+                    <span className="notes-section-badge">{independentNotes.length}</span>
                   </div>
-                  {folderNotes.length > 0 && (
-                    <div className="folder-card-preview">
-                      {folderNotes.slice(0, 3).map(n => (
-                        <span key={n.id} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          • {n.title || 'Untitled Note'}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })
+                  {sortedIndependentNotes.map(note => {
+                    const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
+                    const snippet = getSnippet(note.content);
+                    const folder = getFolderStr(note.id);
+                    const todos = parseChecklist(note.content);
+                    const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
+                    
+                    return (
+                      <div 
+                        key={note.id}
+                        onClick={() => setActiveNoteId(note.id)}
+                        className={`bento-card ${layout.sizeClass}`}
+                      >
+                        {/* Hover Tools Overlay */}
+                        <div className="bento-hover-actions">
+                          <button 
+                            onClick={(e) => handleDeleteNote(note.id, e)}
+                            className="bento-action-btn btn-delete"
+                            title="Delete Note"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+
+                        {/* Card Content */}
+                        <div>
+                          <div className="bento-card-folder">
+                            {folder ? `${folder}` : 'Notes'}
+                          </div>
+                          <div className="bento-card-title">
+                            {note.title || 'Untitled Note'}
+                          </div>
+
+                          {layout.type === 'checklist' ? (
+                            <div className="bento-card-todo-list">
+                              {uncheckedTodos.map((todo, idx) => (
+                                <div 
+                                  key={idx}
+                                  className="bento-card-todo-item"
+                                  onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
+                                >
+                                  <span className="bento-card-todo-checkbox">
+                                    {todo.checked ? '✓' : ''}
+                                  </span>
+                                  <span style={{ textDecoration: todo.checked ? 'line-through' : 'none', opacity: todo.checked ? 0.5 : 1 }}>
+                                    {todo.text}
+                                  </span>
+                                </div>
+                              ))}
+                              {todos.filter(t => !t.checked).length > 3 && (
+                                <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
+                                  <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="bento-card-snippet">
+                              {snippet || 'Empty note.'}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="bento-card-footer">
+                          <span>{formatTime(note.updatedAt)}</span>
+                          {note.tags && note.tags.length > 0 && (
+                            <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              )}
+            </>
           )
         ) : (
           // FILTERED NOTE CARDS LIST
