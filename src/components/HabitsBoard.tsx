@@ -14,8 +14,6 @@ import {
   Clock,
   BookOpen,
   Target,
-  Zap,
-  TrendingUp,
   ChevronRight,
   Award,
   BarChart2
