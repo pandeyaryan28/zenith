@@ -657,28 +657,55 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return Array.from(foldersSet).sort();
   }, [notes]);
 
-  // Extract real folders (excluding fallback 'Notes' and empty strings)
-  const realFolders = useMemo(() => {
-    return allFolders.filter(f => f !== 'Notes' && f.trim() !== '');
-  }, [allFolders]);
+  // Get visible subfolders at the current activeFolderView level
+  const currentFolders = useMemo(() => {
+    const foldersSet = new Set<string>();
+    const rawFolders = allFolders.filter(f => f !== 'Notes' && f.trim() !== '');
+    
+    if (activeFolderView === null) {
+      rawFolders.forEach(folder => {
+        const parts = folder.split(' / ');
+        if (parts.length > 0 && parts[0] !== 'Notes' && parts[0].trim() !== '') {
+          foldersSet.add(parts[0]);
+        }
+      });
+    } else {
+      const parentParts = activeFolderView.split(' / ');
+      rawFolders.forEach(folder => {
+        const folderParts = folder.split(' / ');
+        if (folderParts.length === parentParts.length + 1) {
+          const parentPath = folderParts.slice(0, parentParts.length).join(' / ');
+          if (parentPath === activeFolderView) {
+            foldersSet.add(folder);
+          }
+        }
+      });
+    }
+    
+    return Array.from(foldersSet).sort();
+  }, [allFolders, activeFolderView]);
 
-  // Extract independent notes (not associated with any folders or in the default 'Notes' folder)
-  const independentNotes = useMemo(() => {
+  // Get notes belonging directly to the current activeFolderView level
+  const currentNotes = useMemo(() => {
     return notes.filter(note => {
       const folder = getFolderStr(note.id);
-      return folder === '' || folder === 'Notes';
+      if (activeFolderView === null) {
+        return folder === '' || folder === 'Notes';
+      } else {
+        return folder === activeFolderView;
+      }
     });
-  }, [notes]);
+  }, [notes, activeFolderView]);
 
-  // Sort independent notes
-  const sortedIndependentNotes = useMemo(() => {
-    const notesCopy = [...independentNotes];
+  // Sort current level notes
+  const sortedCurrentNotes = useMemo(() => {
+    const notesCopy = [...currentNotes];
     if (sortBy === 'title') {
       return notesCopy.sort((a, b) => a.title.localeCompare(b.title));
     } else {
       return notesCopy.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
     }
-  }, [independentNotes, sortBy]);
+  }, [currentNotes, sortBy]);
 
   // Plain-text snippet
   const getSnippet = (content: string) => {
@@ -734,9 +761,17 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     setShowCreateDialog(true);
   };
 
-  const handleCloseFolderView = () => {
-    setActiveFolderView(null);
-    setSelectedFolder(null);
+  const handleGoBackFolder = () => {
+    if (!activeFolderView) return;
+    const parts = activeFolderView.split(' / ');
+    if (parts.length <= 1) {
+      setActiveFolderView(null);
+      setSelectedFolder(null);
+    } else {
+      const parent = parts.slice(0, -1).join(' / ');
+      setActiveFolderView(parent);
+      setSelectedFolder(parent);
+    }
   };
 
   const handleCreateNoteConfirm = async () => {
@@ -962,12 +997,12 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
       {/* =========================================================================
          BENTO GRID BOARD (Main Workspace)
          ========================================================================= */}
-      <div className="notes-bento-grid">
+      <div className="notes-board-scroll-container">
         {activeFolderView !== null && !searchTerm && (
-          <div className="folder-header-row" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+          <div className="folder-header-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <button 
-                onClick={handleCloseFolderView}
+                onClick={handleGoBackFolder}
                 className="btn-secondary hover-scale"
                 style={{ 
                   display: 'flex', 
@@ -984,156 +1019,175 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                 }}
               >
                 <ArrowLeft size={13} />
-                <span>Back to Folders</span>
+                <span>{activeFolderView.includes(' / ') ? 'Back' : 'Back to Folders'}</span>
               </button>
               <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
                 <Folder size={16} style={{ color: 'var(--color-primary)' }} />
                 <span>{activeFolderView}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                  ({sortedNotes.length} note{sortedNotes.length !== 1 ? 's' : ''})
+                  ({notes.filter(n => {
+                    const noteF = getFolderStr(n.id) || 'Notes';
+                    return noteF === activeFolderView || noteF.startsWith(activeFolderView + ' / ');
+                  }).length} note{notes.filter(n => {
+                    const noteF = getFolderStr(n.id) || 'Notes';
+                    return noteF === activeFolderView || noteF.startsWith(activeFolderView + ' / ');
+                  }).length !== 1 ? 's' : ''})
                 </span>
               </h2>
             </div>
           </div>
         )}
 
-        {activeFolderView === null && !searchTerm && !selectedTag ? (
-          // ROOT VIEW: FOLDERS & INDEPENDENT NOTES
-          realFolders.length === 0 && independentNotes.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
+        {!searchTerm && !selectedTag ? (
+          // HIERARCHICAL VIEW (ROOT OR SUBFOLDER)
+          currentFolders.length === 0 && currentNotes.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
               <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
                 <Sparkles size={28} />
               </div>
               <div style={{ textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>No Notes Found</h3>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
+                  {activeFolderView ? 'Empty Folder' : 'No Notes Found'}
+                </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                  Create your first folder & note via the bottom command dock.
+                  {activeFolderView 
+                    ? `This folder is empty. Create a new note inside '${activeFolderView}'!` 
+                    : 'Create your first folder & note via the bottom command dock.'}
                 </p>
               </div>
             </div>
           ) : (
             <>
-              {realFolders.length > 0 && (
+              {currentFolders.length > 0 && (
                 <>
                   <div className="notes-section-header">
                     <Folder size={16} />
                     <span>Folders</span>
-                    <span className="notes-section-badge">{realFolders.length}</span>
+                    <span className="notes-section-badge">{currentFolders.length}</span>
                   </div>
-                  {realFolders.map(folder => {
-                    const folderNotes = notes.filter(n => (getFolderStr(n.id) || 'Notes') === folder);
-                    return (
-                      <div 
-                        key={folder}
-                        onClick={() => {
-                          setActiveFolderView(folder);
-                          setSelectedFolder(folder);
-                        }}
-                        className="bento-card folder-card"
-                        style={{ gridColumn: 'span 1', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', minHeight: '140px', justifyContent: 'space-between', padding: '1.25rem' }}
-                      >
-                        <div className="folder-icon-wrapper">
-                          <Folder size={20} />
-                        </div>
-                        <div style={{ textAlign: 'left' }}>
-                          <h3 className="folder-card-title" style={{ fontSize: '0.95rem', margin: 0 }}>{folder}</h3>
-                          <span className="folder-card-count" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            {folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
-                          </span>
-                        </div>
-                        {folderNotes.length > 0 && (
-                          <div className="folder-card-preview">
-                            {folderNotes.slice(0, 3).map(n => (
-                              <span key={n.id} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                • {n.title || 'Untitled Note'}
-                              </span>
-                            ))}
+                  <div className="notes-folders-grid">
+                    {currentFolders.map(folder => {
+                      const folderNotes = notes.filter(n => {
+                        const noteF = getFolderStr(n.id) || 'Notes';
+                        return noteF === folder || noteF.startsWith(folder + ' / ');
+                      });
+                      return (
+                        <div 
+                          key={folder}
+                          onClick={() => {
+                            setActiveFolderView(folder);
+                            setSelectedFolder(folder);
+                          }}
+                          className="bento-card folder-card"
+                          style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', minHeight: '140px', justifyContent: 'space-between', padding: '1.25rem' }}
+                        >
+                          <div className="folder-icon-wrapper">
+                            <Folder size={20} />
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                          <div style={{ textAlign: 'left' }}>
+                            <h3 className="folder-card-title" style={{ fontSize: '0.95rem', margin: 0 }}>
+                              {folder.includes(' / ') ? folder.split(' / ').pop() : folder}
+                            </h3>
+                            <span className="folder-card-count" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              {folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          {folderNotes.length > 0 && (
+                            <div className="folder-card-preview">
+                              {folderNotes.slice(0, 3).map(n => (
+                                <span key={n.id} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  • {n.title || 'Untitled Note'}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </>
               )}
 
-              {independentNotes.length > 0 && (
+              {currentNotes.length > 0 && (
                 <>
-                  <div className="notes-section-header" style={{ marginTop: realFolders.length > 0 ? '1.5rem' : '0.5rem' }}>
+                  <div className="notes-section-header" style={{ marginTop: currentFolders.length > 0 ? '1.5rem' : '0.5rem' }}>
                     <FileText size={16} />
-                    <span>Independent Notes</span>
-                    <span className="notes-section-badge">{independentNotes.length}</span>
+                    <span>{activeFolderView ? 'Notes' : 'Independent Notes'}</span>
+                    <span className="notes-section-badge">{currentNotes.length}</span>
                   </div>
-                  {sortedIndependentNotes.map(note => {
-                    const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
-                    const snippet = getSnippet(note.content);
-                    const folder = getFolderStr(note.id);
-                    const todos = parseChecklist(note.content);
-                    const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
-                    
-                    return (
-                      <div 
-                        key={note.id}
-                        onClick={() => setActiveNoteId(note.id)}
-                        className={`bento-card ${layout.sizeClass}`}
-                      >
-                        {/* Hover Tools Overlay */}
-                        <div className="bento-hover-actions">
-                          <button 
-                            onClick={(e) => handleDeleteNote(note.id, e)}
-                            className="bento-action-btn btn-delete"
-                            title="Delete Note"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-
-                        {/* Card Content */}
-                        <div>
-                          <div className="bento-card-folder">
-                            {folder ? `${folder}` : 'Notes'}
-                          </div>
-                          <div className="bento-card-title">
-                            {note.title || 'Untitled Note'}
+                  <div className="notes-bento-grid">
+                    {sortedCurrentNotes.map(note => {
+                      const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
+                      const snippet = getSnippet(note.content);
+                      const folder = getFolderStr(note.id);
+                      const todos = parseChecklist(note.content);
+                      const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
+                      
+                      return (
+                        <div 
+                          key={note.id}
+                          onClick={() => setActiveNoteId(note.id)}
+                          className={`bento-card ${layout.sizeClass}`}
+                        >
+                          {/* Hover Tools Overlay */}
+                          <div className="bento-hover-actions">
+                            <button 
+                              onClick={(e) => handleDeleteNote(note.id, e)}
+                              className="bento-action-btn btn-delete"
+                              title="Delete Note"
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
 
-                          {layout.type === 'checklist' ? (
-                            <div className="bento-card-todo-list">
-                              {uncheckedTodos.map((todo, idx) => (
-                                <div 
-                                  key={idx}
-                                  className="bento-card-todo-item"
-                                  onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
-                                >
-                                  <span className="bento-card-todo-checkbox">
-                                    {todo.checked ? '✓' : ''}
-                                  </span>
-                                  <span style={{ textDecoration: todo.checked ? 'line-through' : 'none', opacity: todo.checked ? 0.5 : 1 }}>
-                                    {todo.text}
-                                  </span>
-                                </div>
-                              ))}
-                              {todos.filter(t => !t.checked).length > 3 && (
-                                <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
-                                  <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
-                                </span>
-                              )}
+                          {/* Card Content */}
+                          <div>
+                            <div className="bento-card-folder">
+                              {folder ? `${folder}` : 'Notes'}
                             </div>
-                          ) : (
-                            <div className="bento-card-snippet">
-                              {snippet || 'Empty note.'}
+                            <div className="bento-card-title">
+                              {note.title || 'Untitled Note'}
                             </div>
-                          )}
-                        </div>
 
-                        <div className="bento-card-footer">
-                          <span>{formatTime(note.updatedAt)}</span>
-                          {note.tags && note.tags.length > 0 && (
-                            <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
-                          )}
+                            {layout.type === 'checklist' ? (
+                              <div className="bento-card-todo-list">
+                                {uncheckedTodos.map((todo, idx) => (
+                                  <div 
+                                    key={idx}
+                                    className="bento-card-todo-item"
+                                    onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
+                                  >
+                                    <span className="bento-card-todo-checkbox">
+                                      {todo.checked ? '✓' : ''}
+                                    </span>
+                                    <span style={{ textDecoration: todo.checked ? 'line-through' : 'none', opacity: todo.checked ? 0.5 : 1 }}>
+                                      {todo.text}
+                                    </span>
+                                  </div>
+                                ))}
+                                {todos.filter(t => !t.checked).length > 3 && (
+                                  <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
+                                    <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="bento-card-snippet">
+                                {snippet || 'Empty note.'}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="bento-card-footer">
+                            <span>{formatTime(note.updatedAt)}</span>
+                            {note.tags && note.tags.length > 0 && (
+                              <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </>
               )}
             </>
@@ -1141,89 +1195,91 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
         ) : (
           // FILTERED NOTE CARDS LIST
           sortedNotes.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
               <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
                 <Sparkles size={28} />
               </div>
               <div style={{ textAlign: 'center' }}>
                 <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>No Notes Found</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                  {activeFolderView ? `This folder is empty. Create a new note inside '${activeFolderView}'!` : 'No notes match your filter query.'}
+                  No notes match your filter query.
                 </p>
               </div>
             </div>
           ) : (
-            sortedNotes.map(note => {
-              const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
-              const snippet = getSnippet(note.content);
-              const folder = getFolderStr(note.id);
-              const todos = parseChecklist(note.content);
-              const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
-              
-              return (
-                <div 
-                  key={note.id}
-                  onClick={() => setActiveNoteId(note.id)}
-                  className={`bento-card ${layout.sizeClass}`}
-                >
-                  {/* Hover Tools Overlay */}
-                  <div className="bento-hover-actions">
-                    <button 
-                      onClick={(e) => handleDeleteNote(note.id, e)}
-                      className="bento-action-btn btn-delete"
-                      title="Delete Note"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-
-                  {/* Card Content */}
-                  <div>
-                    <div className="bento-card-folder">
-                      {folder ? `${folder}` : 'Notes'}
-                    </div>
-                    <div className="bento-card-title">
-                      {note.title || 'Untitled Note'}
+            <div className="notes-bento-grid">
+              {sortedNotes.map(note => {
+                const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
+                const snippet = getSnippet(note.content);
+                const folder = getFolderStr(note.id);
+                const todos = parseChecklist(note.content);
+                const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
+                
+                return (
+                  <div 
+                    key={note.id}
+                    onClick={() => setActiveNoteId(note.id)}
+                    className={`bento-card ${layout.sizeClass}`}
+                  >
+                    {/* Hover Tools Overlay */}
+                    <div className="bento-hover-actions">
+                      <button 
+                        onClick={(e) => handleDeleteNote(note.id, e)}
+                        className="bento-action-btn btn-delete"
+                        title="Delete Note"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
 
-                    {layout.type === 'checklist' ? (
-                      <div className="bento-card-todo-list">
-                        {uncheckedTodos.map((todo, idx) => (
-                          <div 
-                            key={idx}
-                            className="bento-card-todo-item"
-                            onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
-                          >
-                            <span className="bento-card-todo-checkbox">
-                              {todo.checked ? '✓' : ''}
-                            </span>
-                            <span style={{ textDecoration: todo.checked ? 'line-through' : 'none', opacity: todo.checked ? 0.5 : 1 }}>
-                              {todo.text}
-                            </span>
-                          </div>
-                        ))}
-                        {todos.filter(t => !t.checked).length > 3 && (
-                          <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
-                            <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
-                          </span>
-                        )}
+                    {/* Card Content */}
+                    <div>
+                      <div className="bento-card-folder">
+                        {folder ? `${folder}` : 'Notes'}
                       </div>
-                    ) : (
-                      <div className="bento-card-snippet">
-                        {snippet || 'Empty note.'}
+                      <div className="bento-card-title">
+                        {note.title || 'Untitled Note'}
                       </div>
-                    )}
-                  </div>
 
-                  <div className="bento-card-footer">
-                    <span>{formatTime(note.updatedAt)}</span>
-                    {note.tags && note.tags.length > 0 && (
-                      <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
-                    )}
+                      {layout.type === 'checklist' ? (
+                        <div className="bento-card-todo-list">
+                          {uncheckedTodos.map((todo, idx) => (
+                            <div 
+                              key={idx}
+                              className="bento-card-todo-item"
+                              onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
+                            >
+                              <span className="bento-card-todo-checkbox">
+                                {todo.checked ? '✓' : ''}
+                              </span>
+                              <span style={{ textDecoration: todo.checked ? 'line-through' : 'none', opacity: todo.checked ? 0.5 : 1 }}>
+                                {todo.text}
+                              </span>
+                            </div>
+                          ))}
+                          {todos.filter(t => !t.checked).length > 3 && (
+                            <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
+                              <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="bento-card-snippet">
+                          {snippet || 'Empty note.'}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bento-card-footer">
+                      <span>{formatTime(note.updatedAt)}</span>
+                      {note.tags && note.tags.length > 0 && (
+                        <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )
         )}
       </div>

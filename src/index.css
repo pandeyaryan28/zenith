@@ -809,16 +809,31 @@ html[data-style="retro"] ::-webkit-scrollbar-thumb {
   background: transparent;
 }
 
-/* Bento Grid Board */
+/* Bento Grid Board & Scroll Container */
+.notes-board-scroll-container {
+  width: 100%;
+  height: 100%;
+  padding: 1.5rem 1.5rem 6.5rem 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.notes-folders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.25rem;
+  width: 100%;
+  align-content: start;
+}
+
 .notes-bento-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   grid-auto-rows: 200px;
   gap: 1.25rem;
   width: 100%;
-  height: 100%;
-  padding: 1.5rem 1.5rem 6.5rem 1.5rem;
-  overflow-y: auto;
   align-content: start;
 }
 
@@ -1666,7 +1681,6 @@ html[data-style="retro"] .global-search-result-item.active {
    ========================================================================= */
 
 .notes-section-header {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
   gap: 0.6rem;
