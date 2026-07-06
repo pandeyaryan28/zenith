@@ -537,6 +537,7 @@ input:focus, select:focus, textarea:focus {
    ========================================================================= */
 
 /* General Ambient Glow toggling */
+html[data-style="neumorphism"] .ambient-glow,
 html[data-style="minimalist"] .ambient-glow,
 html[data-style="retro"] .ambient-glow {
   display: none !important;
@@ -1389,6 +1390,7 @@ html[data-style="neumorphism"] .bento-card {
 }
 html[data-style="neumorphism"] .bento-card:hover {
   box-shadow: var(--shadow-md) !important;
+  border: none !important;
 }
 html[data-style="neumorphism"] .bento-filter-dock {
   background: var(--bg-surface) !important;
