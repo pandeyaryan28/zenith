@@ -409,6 +409,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [activeFolderView, setActiveFolderView] = useState<string | null>(null);
   
   const [sortBy, setSortBy] = useState<'updated' | 'title'>('updated');
   const [showTagsPopover, setShowTagsPopover] = useState(false);
@@ -425,6 +426,13 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
   const [focusedLineIndex, setFocusedLineIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [wikiCreateTarget, setWikiCreateTarget] = useState<string | null>(null);
+
+  // Sync dock folder filter with active UI folder view
+  useEffect(() => {
+    if (selectedFolder) {
+      setActiveFolderView(selectedFolder);
+    }
+  }, [selectedFolder]);
 
   const activeNote = useMemo(() => {
     return notes.find(n => n.id === activeNoteId) || null;
@@ -702,6 +710,11 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     setShowCreateDialog(true);
   };
 
+  const handleCloseFolderView = () => {
+    setActiveFolderView(null);
+    setSelectedFolder(null);
+  };
+
   const handleCreateNoteConfirm = async () => {
     const folderName = isNewFolderMode ? newFolderName.trim() : createDialogFolder;
     const cleanFolder = folderName || 'Notes';
@@ -926,93 +939,176 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
          BENTO GRID BOARD (Main Workspace)
          ========================================================================= */}
       <div className="notes-bento-grid">
-        {sortedNotes.length === 0 ? (
-          <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
-            <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
-              <Sparkles size={28} />
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>No Notes Found</h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                Add your first note via the bottom command dock.
-              </p>
+        {activeFolderView !== null && !searchTerm && (
+          <div className="folder-header-row" style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <button 
+                onClick={handleCloseFolderView}
+                className="btn-secondary hover-scale"
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.35rem', 
+                  padding: '0.4rem 0.75rem', 
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-color)',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                <ArrowLeft size={13} />
+                <span>Back to Folders</span>
+              </button>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                <Folder size={16} style={{ color: 'var(--color-primary)' }} />
+                <span>{activeFolderView}</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                  ({sortedNotes.length} note{sortedNotes.length !== 1 ? 's' : ''})
+                </span>
+              </h2>
             </div>
           </div>
-        ) : (
-          sortedNotes.map(note => {
-            const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
-            const snippet = getSnippet(note.content);
-            const folder = getFolderStr(note.id);
-            const todos = parseChecklist(note.content);
-            const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
-            
-            return (
-              <div 
-                key={note.id}
-                onClick={() => setActiveNoteId(note.id)}
-                className={`bento-card ${layout.sizeClass}`}
-              >
-                {/* Hover Tools Overlay */}
-                <div className="bento-hover-actions">
-                  <button 
-                    onClick={(e) => handleDeleteNote(note.id, e)}
-                    className="bento-action-btn btn-delete"
-                    title="Delete Note"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+        )}
 
-                {/* Card Content */}
-                <div>
-                  <div className="bento-card-folder">
-                    {folder ? `${folder}` : 'Root'}
-                  </div>
-                  <div className="bento-card-title">
-                    {note.title || 'Untitled Note'}
-                  </div>
-
-                  {layout.type === 'checklist' ? (
-                    <div className="bento-card-todo-list">
-                      {uncheckedTodos.map((todo, idx) => (
-                        <div 
-                          key={idx}
-                          className="bento-card-todo-item"
-                          onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
-                        >
-                          <input 
-                            type="checkbox" 
-                            checked={todo.checked}
-                            readOnly
-                            style={{ width: '12px', height: '12px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
-                          />
-                          <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {todo.text}
-                          </span>
-                        </div>
-                      ))}
-                      {todos.filter(t => !t.checked).length > 3 && (
-                        <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
-                          <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bento-card-snippet">
-                      {snippet || 'Empty note.'}
-                    </div>
-                  )}
-                </div>
-
-                <div className="bento-card-footer">
-                  <span>{formatTime(note.updatedAt)}</span>
-                  {note.tags && note.tags.length > 0 && (
-                    <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
-                  )}
-                </div>
+        {activeFolderView === null && !searchTerm ? (
+          // ROOT FOLDERS VIEW
+          allFolders.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
+              <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
+                <Sparkles size={28} />
               </div>
-            );
-          })
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>No Notes Found</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  Create your first folder & note via the bottom command dock.
+                </p>
+              </div>
+            </div>
+          ) : (
+            allFolders.map(folder => {
+              const folderNotes = notes.filter(n => (getFolderStr(n.id) || 'Notes') === folder);
+              return (
+                <div 
+                  key={folder}
+                  onClick={() => {
+                    setActiveFolderView(folder);
+                    setSelectedFolder(folder);
+                  }}
+                  className="bento-card folder-card"
+                  style={{ gridColumn: 'span 1', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer', minHeight: '140px', justifyContent: 'space-between', padding: '1.25rem' }}
+                >
+                  <div className="folder-icon-wrapper">
+                    <Folder size={20} />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <h3 className="folder-card-title" style={{ fontSize: '0.95rem', margin: 0 }}>{folder}</h3>
+                    <span className="folder-card-count" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {folderNotes.length} note{folderNotes.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {folderNotes.length > 0 && (
+                    <div className="folder-card-preview">
+                      {folderNotes.slice(0, 3).map(n => (
+                        <span key={n.id} style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          • {n.title || 'Untitled Note'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )
+        ) : (
+          // FILTERED NOTE CARDS LIST
+          sortedNotes.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', gap: '1rem', padding: '4rem 0' }}>
+              <div style={{ display: 'inline-flex', padding: '1rem', borderRadius: 'var(--radius-md)', background: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
+                <Sparkles size={28} />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>No Notes Found</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                  {activeFolderView ? `This folder is empty. Create a new note inside '${activeFolderView}'!` : 'No notes match your filter query.'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            sortedNotes.map(note => {
+              const layout = bentoLayouts[note.id] || { sizeClass: '', type: 'standard' };
+              const snippet = getSnippet(note.content);
+              const folder = getFolderStr(note.id);
+              const todos = parseChecklist(note.content);
+              const uncheckedTodos = todos.filter(t => !t.checked).slice(0, 3);
+              
+              return (
+                <div 
+                  key={note.id}
+                  onClick={() => setActiveNoteId(note.id)}
+                  className={`bento-card ${layout.sizeClass}`}
+                >
+                  {/* Hover Tools Overlay */}
+                  <div className="bento-hover-actions">
+                    <button 
+                      onClick={(e) => handleDeleteNote(note.id, e)}
+                      className="bento-action-btn btn-delete"
+                      title="Delete Note"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+
+                  {/* Card Content */}
+                  <div>
+                    <div className="bento-card-folder">
+                      {folder ? `${folder}` : 'Notes'}
+                    </div>
+                    <div className="bento-card-title">
+                      {note.title || 'Untitled Note'}
+                    </div>
+
+                    {layout.type === 'checklist' ? (
+                      <div className="bento-card-todo-list">
+                        {uncheckedTodos.map((todo, idx) => (
+                          <div 
+                            key={idx}
+                            className="bento-card-todo-item"
+                            onClick={(e) => handleToggleCardChecklist(note.id, todo.lineIndex, !todo.checked, e)}
+                          >
+                            <span className="bento-card-todo-checkbox">
+                              {todo.checked ? '✓' : ''}
+                            </span>
+                            <span style={{ textDecoration: todo.checked ? 'line-through' : 'none', opacity: todo.checked ? 0.5 : 1 }}>
+                              {todo.text}
+                            </span>
+                          </div>
+                        ))}
+                        {todos.filter(t => !t.checked).length > 3 && (
+                          <span style={{ fontSize: '0.62rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.15rem' }}>
+                            <ChevronRight size={10} /> + {todos.filter(t => !t.checked).length - 3} more checklist items
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="bento-card-snippet">
+                        {snippet || 'Empty note.'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bento-card-footer">
+                    <span>{formatTime(note.updatedAt)}</span>
+                    {note.tags && note.tags.length > 0 && (
+                      <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>#{note.tags[0]}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )
         )}
       </div>
 

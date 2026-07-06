@@ -1621,3 +1621,43 @@ html[data-style="retro"] .global-search-result-item.active {
   border: 1px dashed var(--color-primary) !important;
 }
 
+/* =========================================================================
+   Folder Bento Cards CSS
+   ========================================================================= */
+
+.folder-icon-wrapper {
+  display: inline-flex;
+  padding: 0.75rem;
+  border-radius: 50%;
+  background: var(--color-primary-glow);
+  color: var(--color-primary);
+  align-self: flex-start;
+  margin-bottom: 0.75rem;
+  transition: all var(--transition-fast);
+}
+
+.bento-card.folder-card:hover .folder-icon-wrapper {
+  background: var(--color-primary);
+  color: #fff;
+  transform: scale(1.05);
+}
+
+.folder-card-preview {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 0.6rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  width: 100%;
+}
+
+.folder-card-preview span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
