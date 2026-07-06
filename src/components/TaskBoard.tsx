@@ -387,7 +387,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     return (
       <div 
         key={task.id}
-        className="task-row"
+        className={`task-row ${isSelected ? 'selected' : ''}`}
         onClick={() => setSelectedTask(task)}
         style={{
           display: 'flex',
@@ -585,8 +585,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       
       {/* Custom styles inject */}
       <style>{`
-        .task-row:hover {
-          background: rgba(255, 255, 255, 0.025) !important;
+        .task-row:not(.selected):hover {
+          background: var(--bg-surface-hover) !important;
         }
         .task-row:hover .task-actions {
           opacity: 1 !important;
