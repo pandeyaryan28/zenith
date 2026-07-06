@@ -12,7 +12,7 @@ import {
   RefreshCw, 
   User as UserIcon, 
   LogOut, 
-  Sliders, 
+  Settings, 
   Timer, 
   CheckCircle2, 
   AlertCircle,
@@ -134,7 +134,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
       {/* Title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
         <div style={{ display: 'inline-flex', padding: '0.625rem', borderRadius: '0.75rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-          <Sliders size={22} className="text-gradient" />
+          <Settings size={22} className="text-gradient" />
         </div>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Settings</h2>

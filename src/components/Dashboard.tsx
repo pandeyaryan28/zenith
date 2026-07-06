@@ -9,17 +9,17 @@ import {
   User as UserIcon, 
   Calendar as CalendarIcon,
   Flame,
-  CheckCircle2,
+  Target,
   Timer,
-  Sliders,
+  Settings,
   TrendingUp,
   LayoutDashboard,
   Play,
   Pause,
   AlertCircle,
   Sparkles,
-  FolderKanban,
-  FileText,
+  ListTodo,
+  Notebook,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -196,12 +196,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const navItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard, color: 'var(--color-primary)' },
     { id: 'calendar', label: 'Calendar', icon: CalendarIcon, color: 'var(--color-secondary)' },
-    { id: 'tasks', label: 'Tasks Board', icon: FolderKanban, color: 'var(--color-primary)' },
-    { id: 'notes', label: 'Notes Sync', icon: FileText, color: 'var(--color-success)' },
-    { id: 'habits', label: 'Habits Board', icon: CheckCircle2, color: 'var(--color-warning)' },
+    { id: 'tasks', label: 'Tasks Board', icon: ListTodo, color: 'var(--color-primary)' },
+    { id: 'notes', label: 'Notes Sync', icon: Notebook, color: 'var(--color-success)' },
+    { id: 'habits', label: 'Habits Board', icon: Target, color: 'var(--color-warning)' },
     { id: 'pomodoro', label: 'Focus Station', icon: Timer, color: 'var(--color-danger)' },
     { id: 'analytics', label: 'Visual Analytics', icon: TrendingUp, color: 'var(--color-success)' },
-    { id: 'settings', label: 'Settings', icon: Sliders, color: 'var(--text-secondary)' }
+    { id: 'settings', label: 'Settings', icon: Settings, color: 'var(--text-secondary)' }
   ] as const;
 
   return (

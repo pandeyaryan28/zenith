@@ -9,7 +9,7 @@ import {
   Calendar as CalendarIcon, 
   CheckSquare, 
   Timer, 
-  CheckCircle2, 
+  Target, 
   ArrowRight,
   TrendingUp,
   Sparkles,
@@ -18,7 +18,7 @@ import {
   RotateCcw,
   Search,
   Square,
-  FolderKanban,
+  ListTodo,
   X
 } from 'lucide-react';
 
@@ -278,7 +278,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <CheckCircle2 size={18} style={{ color: 'var(--color-primary)' }} />
+              <Target size={18} style={{ color: 'var(--color-primary)' }} />
               Today's Habits Checklist
             </h3>
             <button 
@@ -482,7 +482,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 style={{ width: '100%', justifyContent: 'space-between', fontSize: '0.75rem', padding: '0.45rem 0.65rem', background: 'rgba(0,0,0,0.15)' }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <FolderKanban size={12} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />
+                  <ListTodo size={12} style={{ color: 'var(--color-secondary)', flexShrink: 0 }} />
                   {pomoSelectedTaskIds.length === 0 ? 'Link tasks to focus...' : `${pomoSelectedTaskIds.length} task(s) linked`}
                 </span>
                 <span>▼</span>

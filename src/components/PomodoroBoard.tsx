@@ -10,7 +10,7 @@ import {
   Trash2, 
   Plus, 
   Minus, 
-  FolderKanban,
+  ListTodo,
   CheckSquare,
   Square,
   Timer,
@@ -321,7 +321,7 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
           {/* Linked Tasks Card */}
           <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <FolderKanban size={14} style={{ color: 'var(--color-secondary)' }} />
+              <ListTodo size={14} style={{ color: 'var(--color-secondary)' }} />
               Target Tasks ({selectedTaskIds.length} linked)
             </span>
 
