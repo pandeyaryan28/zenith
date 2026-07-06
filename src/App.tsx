@@ -102,6 +102,82 @@ function App() {
   const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
   
   const audioRefs = useRef<{ [id: string]: HTMLAudioElement | null }>({});
+  const pomoRestored = useRef(false);
+
+  // Restore Pomodoro state from LocalStorage on mount (when user and data loading is completed)
+  useEffect(() => {
+    if (user && !dataLoading && !pomoRestored.current) {
+      pomoRestored.current = true;
+      const savedStateStr = localStorage.getItem(`zenith-active-pomo-${user.uid}`);
+      if (savedStateStr) {
+        try {
+          const saved = JSON.parse(savedStateStr);
+          let finalTimeLeft = saved.timeLeft;
+          let finalState = saved.state;
+          let finalStartTime = saved.startTime;
+
+          if (saved.state === 'running' && saved.startTime) {
+            const elapsed = Math.floor((Date.now() - new Date(saved.startTime).getTime()) / 1000);
+            if (elapsed >= saved.totalDuration) {
+              // Timer completed in background! Save completed session
+              finalTimeLeft = 0;
+              finalState = 'idle';
+              finalStartTime = null;
+
+              const logBackgroundSession = async () => {
+                const endStr = new Date(new Date(saved.startTime).getTime() + saved.totalDuration * 1000).toISOString();
+                const durationMin = Math.round(saved.totalDuration / 60);
+                const selectedTasks = tasks.filter(t => (saved.selectedTaskIds || []).includes(t.id));
+                const taskTitles = selectedTasks.map(t => t.title);
+
+                try {
+                  await savePomodoroSession(user.uid, {
+                    startTime: saved.startTime,
+                    endTime: endStr,
+                    durationMinutes: durationMin,
+                    taskIds: saved.selectedTaskIds || [],
+                    taskTitles,
+                    type: saved.type,
+                    completed: true
+                  });
+                } catch (err) {
+                  console.error("Failed to save background completed Pomodoro session:", err);
+                }
+              };
+              logBackgroundSession();
+            } else {
+              // Timer is still running, calculate remaining time
+              finalTimeLeft = saved.totalDuration - elapsed;
+            }
+          }
+
+          setPomoType(saved.type || 'work');
+          setPomoState(finalState || 'idle');
+          setPomoTotalDuration(saved.totalDuration || 1500);
+          setPomoTimeLeft(finalTimeLeft);
+          setPomoStartTime(finalStartTime);
+          setPomoSelectedTaskIds(saved.selectedTaskIds || []);
+        } catch (e) {
+          console.error("Failed to restore pomodoro state", e);
+        }
+      }
+    }
+  }, [user, dataLoading, tasks]);
+
+  // Save Pomodoro State to LocalStorage on changes
+  useEffect(() => {
+    if (user) {
+      const stateToSave = {
+        type: pomoType,
+        state: pomoState,
+        totalDuration: pomoTotalDuration,
+        timeLeft: pomoTimeLeft,
+        startTime: pomoStartTime,
+        selectedTaskIds: pomoSelectedTaskIds,
+      };
+      localStorage.setItem(`zenith-active-pomo-${user.uid}`, JSON.stringify(stateToSave));
+    }
+  }, [pomoType, pomoState, pomoTotalDuration, pomoStartTime, pomoSelectedTaskIds, user]);
 
   // Sync timeLeft when changing preset or settings while idle
   useEffect(() => {
@@ -137,29 +213,37 @@ function App() {
     }
   };
 
+  // Timer Start Time Initializer
+  useEffect(() => {
+    if (pomoState === 'running' && !pomoStartTime) {
+      setPomoStartTime(new Date().toISOString());
+    }
+  }, [pomoState, pomoStartTime]);
+
   // Timer Tick effect
   useEffect(() => {
     let timerInterval: any = null;
     if (pomoState === 'running') {
-      if (!pomoStartTime) {
-        setPomoStartTime(new Date().toISOString());
-      }
       timerInterval = setInterval(() => {
         setPomoTimeLeft((prev) => {
           if (prev <= 1) {
-            handleTimerComplete();
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
-    } else {
-      if (timerInterval) clearInterval(timerInterval);
     }
     return () => {
       if (timerInterval) clearInterval(timerInterval);
     };
-  }, [pomoState, pomoStartTime, pomoType, pomoTotalDuration, pomoSelectedTaskIds]);
+  }, [pomoState]);
+
+  // Timer Completion watcher
+  useEffect(() => {
+    if (pomoState === 'running' && pomoTimeLeft === 0) {
+      handleTimerComplete();
+    }
+  }, [pomoTimeLeft, pomoState]);
 
   const handleTimerComplete = async () => {
     setPomoState('idle');

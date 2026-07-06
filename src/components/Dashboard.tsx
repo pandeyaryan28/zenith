@@ -647,6 +647,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 skipPomo={skipPomo}
                 adjustPomoDuration={adjustPomoDuration}
                 handlePresetSelect={handlePresetSelect}
+                handleSavePartialSession={handleSavePartialSession}
               />
             ) : activePage === 'habits' ? (
               <HabitsBoard

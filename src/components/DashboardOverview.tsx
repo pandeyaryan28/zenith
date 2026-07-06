@@ -73,6 +73,7 @@ interface DashboardOverviewProps {
   skipPomo: () => void;
   adjustPomoDuration: (amount: number) => void;
   handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
+  handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
 }
 
 const QUOTES = [
@@ -119,7 +120,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   toggleAmbientSound,
   skipPomo,
   adjustPomoDuration,
-  handlePresetSelect
+  handlePresetSelect,
+  handleSavePartialSession
 }) => {
   // Live Date and Time
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -133,6 +135,28 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   // Task Search and Quick Add states
   const [taskSearchQuery, setTaskSearchQuery] = useState('');
   const [isTaskSelectorOpen, setIsTaskSelectorOpen] = useState(false);
+  const [showPartialModal, setShowPartialModal] = useState(false);
+  const [partialSessionDuration, setPartialSessionDuration] = useState(0);
+  const [partialStartTime, setPartialStartTime] = useState<string | null>(null);
+
+  const handleReset = () => {
+    resetPomo((durationMin, startTimeStr) => {
+      setPartialSessionDuration(durationMin);
+      setPartialStartTime(startTimeStr);
+      setShowPartialModal(true);
+    });
+  };
+
+  const handleSavePartial = async () => {
+    if (!partialStartTime) return;
+    await handleSavePartialSession(partialSessionDuration, partialStartTime);
+    setShowPartialModal(false);
+  };
+
+  const handleDiscardPartial = () => {
+    setShowPartialModal(false);
+    resetPomo(); // Force-reset timer to idle
+  };
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [localCheckingTasks, setLocalCheckingTasks] = useState<{ [key: string]: boolean }>({});
@@ -264,7 +288,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     : 0;
 
   const completedPomosToday = pomodoroSessions.filter(s => {
-    if (s.type !== 'work' || !s.completed) return false;
+    if (s.type !== 'work') return false;
     const localSessionDateStr = getLocalDateStr(new Date(s.startTime));
     return localSessionDateStr === todayStr;
   });
@@ -304,7 +328,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       const dateStr = getLocalDateStr(d);
       const dayName = d.toLocaleDateString([], { weekday: 'short' });
       const mins = pomodoroSessions
-        .filter(s => s.completed && s.type === 'work' && getLocalDateStr(new Date(s.startTime)) === dateStr)
+        .filter(s => s.type === 'work' && getLocalDateStr(new Date(s.startTime)) === dateStr)
         .reduce((sum, s) => sum + s.durationMinutes, 0);
       data.push({ dayName, mins });
     }
@@ -644,7 +668,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 </button>
                 {pomoState !== 'idle' && (
                   <>
-                    <button onClick={() => resetPomo()} className="btn-secondary" style={{ flex: 0.5, padding: '0.5rem', borderRadius: 'var(--radius-sm)' }} title="Reset Session">
+                    <button onClick={handleReset} className="btn-secondary" style={{ flex: 0.5, padding: '0.5rem', borderRadius: 'var(--radius-sm)' }} title="Reset Session">
                       <RotateCcw size={12} />
                     </button>
                     <button onClick={skipPomo} className="btn-secondary" style={{ flex: 0.5, padding: '0.5rem', borderRadius: 'var(--radius-sm)' }} title="Skip Block">
@@ -699,112 +723,112 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             </div>
           </div>
 
-          {/* Linked Pomodoro Tasks Row */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', background: 'rgba(0,0,0,0.1)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', position: 'relative' }}>
+          {/* Redesigned Linked Pomodoro Tasks Row */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '0.5rem', 
+            background: 'rgba(0,0,0,0.15)', 
+            padding: '0.75rem 0.85rem', 
+            borderRadius: 'var(--radius-sm)', 
+            border: '1px solid var(--border-color)' 
+          }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.725rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Linked Tasks</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <ListTodo size={13} style={{ color: 'var(--color-primary)' }} />
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700 }}>Focus Targets</span>
+                {pomoSelectedTaskIds.length > 0 && (
+                  <span style={{ fontSize: '0.65rem', background: 'var(--color-primary-glow)', color: 'var(--color-primary)', border: '1px solid var(--border-active)', padding: '0.05rem 0.35rem', borderRadius: '10px', fontWeight: 700 }}>
+                    {pomoSelectedTaskIds.length}
+                  </span>
+                )}
+              </div>
               <button 
-                onClick={() => setIsTaskSelectorOpen(!isTaskSelectorOpen)} 
+                onClick={() => setIsTaskSelectorOpen(true)} 
                 className="btn-secondary" 
-                style={{ padding: '0.15rem 0.4rem', fontSize: '0.65rem', borderRadius: '4px', height: '20px' }}
+                style={{ padding: '0.2rem 0.6rem', fontSize: '0.65rem', borderRadius: '4px', height: '22px', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
               >
-                {pomoSelectedTaskIds.length === 0 ? 'Link...' : `${pomoSelectedTaskIds.length} Linked ▾`}
+                <span>Link Tasks</span>
+                <Plus size={10} />
               </button>
             </div>
 
-            {/* Selector Overlay popup */}
-            {isTaskSelectorOpen && (
-              <div 
-                className="global-search-results-overlay" 
-                style={{ 
-                  bottom: '100%', 
-                  top: 'auto', 
-                  maxHeight: '140px', 
-                  padding: '0.4rem', 
-                  boxShadow: 'var(--shadow-lg)' 
-                }}
-              >
-                <div className="global-search-container" style={{ height: '24px', marginBottom: '0.4rem' }}>
-                  <Search size={10} className="global-search-icon" style={{ left: '0.4rem' }} />
-                  <input 
-                    type="text" 
-                    placeholder="Search active tasks..." 
-                    value={taskSearchQuery} 
-                    onChange={(e) => setTaskSearchQuery(e.target.value)}
-                    className="global-search-input"
-                    style={{ fontSize: '0.68rem', padding: '0.2rem 0.4rem 0.2rem 1.6rem' }}
-                  />
-                  {taskSearchQuery && (
-                    <button className="global-search-clear-btn" style={{ right: '0.4rem' }} onClick={() => setTaskSearchQuery('')}>
-                      <X size={10} />
-                    </button>
-                  )}
-                </div>
-                <div className="custom-scroll" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem', maxHeight: '100px' }}>
-                  {filteredSearchTasks.length === 0 ? (
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center', padding: '0.4rem' }}>No active tasks found.</span>
-                  ) : (
-                    filteredSearchTasks.map(task => {
-                      const isSelected = pomoSelectedTaskIds.includes(task.id);
-                      return (
-                        <button
-                          key={task.id}
-                          onClick={() => {
-                            setPomoSelectedTaskIds(prev => 
-                              prev.includes(task.id) 
-                                ? prev.filter(id => id !== task.id) 
-                                : [...prev, task.id]
-                            );
-                          }}
-                          className={`global-search-result-item ${isSelected ? 'active' : ''}`}
-                          style={{ fontSize: '0.68rem', padding: '0.25rem 0.4rem', display: 'flex', gap: '0.4rem' }}
-                        >
-                          {isSelected ? <CheckSquare size={10} /> : <Square size={10} />}
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</span>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* List of target links */}
-            <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', padding: '0.1rem 0' }} className="custom-scroll">
+            {/* Checklist of Linked Tasks */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '115px', overflowY: 'auto' }} className="custom-scroll">
               {pomoSelectedTaskIds.length === 0 ? (
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  No tasks linked. Link above to track focus on specific goals.
-                </span>
+                <div style={{ textAlign: 'center', padding: '0.6rem 0', fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                  <span>No tasks linked to this focus block.</span>
+                  <span style={{ fontSize: '0.6rem', opacity: 0.8 }}>Link active goals to track completion.</span>
+                </div>
               ) : (
-                tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(task => (
-                  <div 
-                    key={task.id}
-                    style={{ 
-                      fontSize: '0.65rem', 
-                      color: 'var(--text-primary)',
-                      padding: '0.2rem 0.45rem',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.35rem',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                  >
-                    <span>🎯 {task.title}</span>
-                    <button
-                      onClick={() => setPomoSelectedTaskIds(prev => prev.filter(id => id !== task.id))}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, fontSize: '0.65rem', display: 'flex', alignItems: 'center' }}
+                tasks.filter(t => pomoSelectedTaskIds.includes(t.id)).map(task => {
+                  const isCompleted = task.status === 'completed';
+                  return (
+                    <div 
+                      key={task.id}
+                      style={{ 
+                        fontSize: '0.725rem', 
+                        color: isCompleted ? 'var(--text-muted)' : 'var(--text-primary)',
+                        padding: '0.4rem 0.5rem',
+                        background: isCompleted ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.03)',
+                        border: '1px solid ' + (isCompleted ? 'rgba(255,255,255,0.02)' : 'var(--border-color)'),
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                        transition: 'all 0.15s ease'
+                      }}
                     >
-                      ×
-                    </button>
-                  </div>
-                ))
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', width: '85%' }}>
+                        <button
+                          onClick={() => onToggleTask(task.id, task.status)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: isCompleted ? 'var(--color-success)' : 'var(--text-muted)',
+                            transition: 'transform 0.1s ease'
+                          }}
+                          title={isCompleted ? "Mark incomplete" : "Mark complete"}
+                        >
+                          {isCompleted ? <CheckSquare size={13} /> : <Square size={13} />}
+                        </button>
+                        <span style={{ 
+                          textDecoration: isCompleted ? 'line-through' : 'none', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          whiteSpace: 'nowrap',
+                          opacity: isCompleted ? 0.6 : 1
+                        }}>
+                          {task.title}
+                        </span>
+                      </div>
+                      
+                      <button
+                        onClick={() => setPomoSelectedTaskIds(prev => prev.filter(id => id !== task.id))}
+                        style={{ 
+                          background: 'none', 
+                          border: 'none', 
+                          color: 'var(--text-muted)', 
+                          cursor: 'pointer', 
+                          padding: '0.1rem', 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          opacity: 0.6
+                        }}
+                        title="Unlink task"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
-
           </div>
         </div>
 
@@ -1421,6 +1445,174 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         </div>
 
       </div>
+
+      {/* Target Tasks Selection Modal */}
+      {isTaskSelectorOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 100,
+          background: 'rgba(5, 6, 10, 0.75)',
+          backdropFilter: 'blur(20px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '480px',
+            padding: '1.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckSquare size={18} style={{ color: 'var(--color-primary)' }} />
+                Select Focus Targets
+              </h3>
+              <button 
+                onClick={() => setIsTaskSelectorOpen(false)}
+                className="btn-secondary"
+                style={{ padding: '0.4rem', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Choose which tasks you want to associate with your active focus session. You can check them off directly from the dashboard Focus Station when finished!
+            </p>
+
+            <div className="global-search-container" style={{ height: '36px', width: '100%', marginBottom: 0, position: 'relative' }}>
+              <Search size={14} className="global-search-icon" style={{ left: '0.625rem', position: 'absolute', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                placeholder="Search active tasks..." 
+                value={taskSearchQuery} 
+                onChange={(e) => setTaskSearchQuery(e.target.value)}
+                className="global-search-input"
+                style={{ fontSize: '0.8rem', padding: '0.45rem 0.5rem 0.45rem 2.2rem', borderRadius: 'var(--radius-sm)', width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+              />
+              {taskSearchQuery && (
+                <button className="global-search-clear-btn" style={{ right: '0.625rem', position: 'absolute', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setTaskSearchQuery('')}>
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
+            <div className="custom-scroll" style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', maxHeight: '220px', paddingRight: '0.2rem' }}>
+              {filteredSearchTasks.length === 0 ? (
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1.5rem' }}>
+                  No active tasks found in this list.
+                </span>
+              ) : (
+                filteredSearchTasks.map(task => {
+                  const isSelected = pomoSelectedTaskIds.includes(task.id);
+                  return (
+                    <div
+                      key={task.id}
+                      onClick={() => {
+                        setPomoSelectedTaskIds(prev => 
+                          prev.includes(task.id) 
+                            ? prev.filter(id => id !== task.id) 
+                            : [...prev, task.id]
+                        );
+                      }}
+                      className={`global-search-result-item ${isSelected ? 'active' : ''}`}
+                      style={{ 
+                        fontSize: '0.8rem', 
+                        padding: '0.6rem 0.75rem', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                        background: isSelected ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.02)',
+                        border: '1px solid ' + (isSelected ? 'var(--border-active)' : 'var(--border-color)'),
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', overflow: 'hidden', width: '75%' }}>
+                        {isSelected ? (
+                          <CheckSquare size={14} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                        ) : (
+                          <Square size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                        )}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-primary)' }}>{task.title}</span>
+                      </div>
+                      
+                      {task.due && (
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '0.1rem 0.35rem', borderRadius: '4px', flexShrink: 0 }}>
+                          {new Date(task.due).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', marginTop: '0.25rem' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                {pomoSelectedTaskIds.length} target{pomoSelectedTaskIds.length !== 1 ? 's' : ''} selected
+              </span>
+              <button 
+                onClick={() => setIsTaskSelectorOpen(false)} 
+                className="btn-primary" 
+                style={{ padding: '0.45rem 1.25rem', fontSize: '0.75rem', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
+              >
+                Save Selection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Partial Session Confirmation Modal */}
+      {showPartialModal && (
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          width: '100vw', 
+          height: '100vh', 
+          zIndex: 100, 
+          background: 'rgba(0, 0, 0, 0.6)', 
+          backdropFilter: 'var(--glass-blur)', 
+          display: 'flex', 
+          justifyContent: 'center', 
+          alignItems: 'center' 
+        }}>
+          <div className="glass-panel" style={{ 
+            width: '90%', 
+            maxWidth: '360px', 
+            padding: '1.5rem', 
+            textAlign: 'center', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '1rem',
+            boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.5)',
+            border: '1px solid rgba(255, 255, 255, 0.08)'
+          }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: 'var(--text-primary)' }}>Save Focus Progress?</h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+              You focused for <strong>{partialSessionDuration} minute{partialSessionDuration !== 1 ? 's' : ''}</strong>. Would you like to log this partial focus session?
+            </p>
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button onClick={handleDiscardPartial} className="btn-secondary" style={{ flex: 1, padding: '0.5rem', cursor: 'pointer' }}>Discard</button>
+              <button onClick={handleSavePartial} className="btn-primary" style={{ flex: 1, padding: '0.5rem', cursor: 'pointer' }}>Save Log</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
