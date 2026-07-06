@@ -750,30 +750,73 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   {sortedDates.map(dateStr => {
                     const dateObj = new Date(dateStr + 'T00:00:00');
                     const dayIsToday = isDateToday(dateObj);
+                    const headerText = dateObj.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 
                     return (
-                      <div key={dateStr} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '1.5rem', alignItems: 'start', borderBottom: '1px solid var(--border-color)', paddingBottom: '1.5rem' }}>
-                        {/* Left Column: Date Indicator */}
-                        <div 
-                          onClick={() => handleOpenAddModalForDate(dateObj)}
-                          style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', cursor: 'pointer' }}
-                          title="Click to schedule event on this day"
-                        >
-                          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: dayIsToday ? 'var(--color-primary)' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {dateObj.toLocaleDateString([], { weekday: 'short' })}
-                          </span>
-                          <span style={{ fontSize: '1.5rem', fontWeight: 800, color: dayIsToday ? 'var(--color-primary)' : 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {dateObj.getDate()}
+                      <div key={dateStr} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {/* Day Header Row */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                          <span style={{ 
+                            fontSize: '0.9rem', 
+                            fontWeight: 700, 
+                            color: dayIsToday ? 'var(--color-primary)' : 'var(--text-secondary)',
+                            fontFamily: 'var(--font-display)',
+                            letterSpacing: '-0.01em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                          }}>
+                            {headerText}
                             {dayIsToday && (
-                              <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', background: 'var(--color-primary)', padding: '0.15rem 0.4rem', borderRadius: '4px', textTransform: 'uppercase' }}>
+                              <span style={{ 
+                                fontSize: '0.65rem', 
+                                fontWeight: 700, 
+                                color: '#fff', 
+                                background: 'var(--color-primary)', 
+                                padding: '0.15rem 0.5rem', 
+                                borderRadius: 'var(--radius-full)', 
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em'
+                              }}>
                                 Today
                               </span>
                             )}
                           </span>
+                          
+                          <button
+                            onClick={() => handleOpenAddModalForDate(dateObj)}
+                            style={{
+                              background: 'rgba(255,255,255,0.03)',
+                              border: '1px solid var(--border-color)',
+                              cursor: 'pointer',
+                              color: 'var(--text-muted)',
+                              padding: '0.2rem',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all var(--transition-fast)'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.color = 'var(--text-primary)';
+                              e.currentTarget.style.background = 'var(--color-primary-glow)';
+                              e.currentTarget.style.borderColor = 'var(--color-primary)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.color = 'var(--text-muted)';
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                              e.currentTarget.style.borderColor = 'var(--border-color)';
+                            }}
+                            title={`Add event on ${dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+                          >
+                            <Plus size={12} />
+                          </button>
+
+                          <div style={{ flex: 1, height: '1px', background: 'var(--border-color)', opacity: 0.8 }} />
                         </div>
 
-                        {/* Right Column: Events List */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {/* Events List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', paddingLeft: '0.25rem' }}>
                           {groups[dateStr].map(event => {
                             const catId = getEventCategory(event);
                             const cat = getCategoryDetails(catId);
@@ -781,58 +824,112 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             const end = new Date(event.end.dateTime || '');
                             const durationMin = isNaN(start.getTime()) || isNaN(end.getTime()) ? null : Math.round((end.getTime() - start.getTime()) / 60000);
 
+                            const timeStr = event.start.date ? 'All Day' : formatEventTime(event);
+                            const durationStr = durationMin && durationMin > 0 ? (durationMin >= 60 ? `${Math.floor(durationMin / 60)}h ${durationMin % 60 > 0 ? `${durationMin % 60}m` : ''}` : `${durationMin}m`) : '';
+
                             return (
                               <div
                                 key={event.id}
                                 onClick={(e) => handleOpenDetailModal(event, e)}
                                 style={{
-                                  padding: '1rem 1.25rem',
-                                  borderRadius: 'var(--radius-md)',
-                                  background: cat.bg,
-                                  border: `1px solid ${cat.border}22`,
-                                  borderLeft: `4px solid ${cat.color}`,
                                   display: 'flex',
-                                  justifyContent: 'space-between',
                                   alignItems: 'center',
+                                  gap: '1.25rem',
+                                  padding: '0.75rem 1rem',
+                                  borderRadius: 'var(--radius-sm)',
                                   cursor: 'pointer',
-                                  transition: 'all 0.2s ease-in-out'
+                                  transition: 'background var(--transition-fast), transform var(--transition-fast)'
                                 }}
-                                className="hover-scale"
+                                className="hover-card-highlight"
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.025)';
+                                  e.currentTarget.style.transform = 'translateX(4px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.transform = 'translateX(0)';
+                                }}
                               >
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: 0, paddingRight: '1rem' }}>
-                                  <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {/* Time column */}
+                                <div style={{ 
+                                  width: '130px', 
+                                  display: 'flex', 
+                                  flexDirection: 'column', 
+                                  gap: '0.1rem',
+                                  flexShrink: 0
+                                }}>
+                                  <span style={{ 
+                                    fontSize: '0.85rem', 
+                                    fontWeight: 600, 
+                                    color: 'var(--text-primary)',
+                                    fontFamily: 'var(--font-body)'
+                                  }}>
+                                    {timeStr}
+                                  </span>
+                                  {durationStr && (
+                                    <span style={{ 
+                                      fontSize: '0.7rem', 
+                                      color: 'var(--text-muted)',
+                                      fontFamily: 'var(--font-body)'
+                                    }}>
+                                      {durationStr}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Category color dot */}
+                                <div style={{ 
+                                  width: '10px', 
+                                  height: '10px', 
+                                  borderRadius: '50%', 
+                                  background: cat.color,
+                                  boxShadow: `0 0 8px ${cat.color}88`,
+                                  flexShrink: 0
+                                }} />
+
+                                {/* Title and description */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1, minWidth: 0 }}>
+                                  <span style={{ 
+                                    fontSize: '0.9rem', 
+                                    fontWeight: 600, 
+                                    color: 'var(--text-primary)',
+                                    fontFamily: 'var(--font-body)',
+                                    whiteSpace: 'nowrap',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}>
                                     {event.summary}
                                   </span>
                                   {event.description && (
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <span style={{ 
+                                      fontSize: '0.75rem', 
+                                      color: 'var(--text-muted)',
+                                      fontFamily: 'var(--font-body)',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis'
+                                    }}>
                                       {cleanDescription(event.description)}
                                     </span>
                                   )}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+
+                                {/* Category tag label */}
+                                <div style={{ flexShrink: 0 }}>
                                   <span style={{
-                                    fontSize: '0.7rem',
+                                    fontSize: '0.65rem',
                                     color: cat.color,
-                                    background: `${cat.color}15`,
-                                    padding: '0.15rem 0.45rem',
-                                    borderRadius: '4px',
+                                    background: `${cat.color}12`,
+                                    border: `1px solid ${cat.color}25`,
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: 'var(--radius-sm)',
                                     fontWeight: 700,
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.02em'
+                                    letterSpacing: '0.03em',
+                                    fontFamily: 'var(--font-body)'
                                   }}>
                                     {cat.label}
                                   </span>
-                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'end', gap: '0.15rem' }}>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem', fontWeight: 600 }}>
-                                      <Clock size={12} />
-                                      {formatEventTime(event)}
-                                    </span>
-                                    {durationMin !== null && (
-                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                        {durationMin >= 60 ? `${Math.floor(durationMin / 60)}h ${durationMin % 60 > 0 ? `${durationMin % 60}m` : ''}` : `${durationMin}m`}
-                                      </span>
-                                    )}
-                                  </div>
                                 </div>
                               </div>
                             );
