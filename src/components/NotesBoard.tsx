@@ -8,6 +8,7 @@ import {
   Loader,
   ArrowUpDown,
   X,
+  Folder,
   Tag,
   ArrowLeft,
   Download,
@@ -387,6 +388,15 @@ const LiveEditableLine: React.FC<LiveEditableLineProps> = ({
 };
 
 // =========================================================================
+// PURE UTILITY FOR EXTRACTING FOLDER PATHS
+// =========================================================================
+const getFolderStr = (id: string) => {
+  const decoded = decodeURIComponent(id);
+  const parts = decoded.split('/');
+  return parts.length > 1 ? parts.slice(0, -1).join(' / ') : '';
+};
+
+// =========================================================================
 // MAIN BENTO NOTES COMPONENT
 // =========================================================================
 export const NotesBoard: React.FC<NotesBoardProps> = ({
@@ -398,8 +408,17 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
   const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  
   const [sortBy, setSortBy] = useState<'updated' | 'title'>('updated');
   const [showTagsPopover, setShowTagsPopover] = useState(false);
+  const [showFoldersPopover, setShowFoldersPopover] = useState(false);
+  
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createDialogTitle, setCreateDialogTitle] = useState('Untitled Note');
+  const [createDialogFolder, setCreateDialogFolder] = useState('Notes');
+  const [isNewFolderMode, setIsNewFolderMode] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   
   const [tempTitle, setTempTitle] = useState('');
   const [tempContent, setTempContent] = useState('');
@@ -616,6 +635,19 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return Array.from(tagsSet).sort();
   }, [notes]);
 
+  // Extract unique folders
+  const allFolders = useMemo(() => {
+    const foldersSet = new Set<string>();
+    notes.forEach(note => {
+      const folder = getFolderStr(note.id);
+      if (folder) {
+        foldersSet.add(folder);
+      }
+    });
+    foldersSet.add('Notes'); // Default fallback
+    return Array.from(foldersSet).sort();
+  }, [notes]);
+
   // Plain-text snippet
   const getSnippet = (content: string) => {
     if (!content) return '';
@@ -644,9 +676,12 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
       
       const matchesTag = !selectedTag || (note.tags && note.tags.includes(selectedTag));
       
-      return matchesSearch && matchesTag;
+      const folder = getFolderStr(note.id);
+      const matchesFolder = !selectedFolder || folder === selectedFolder;
+      
+      return matchesSearch && matchesTag && matchesFolder;
     });
-  }, [notes, searchTerm, selectedTag]);
+  }, [notes, searchTerm, selectedTag, selectedFolder]);
 
   // Sort notes
   const sortedNotes = useMemo(() => {
@@ -658,25 +693,69 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     }
   }, [filteredNotes, sortBy]);
 
-  // Create new note
-  const handleCreateNote = async () => {
-    const title = 'Untitled Note';
-    const content = '# Untitled Note\n\nWrite your thoughts here...\n\n- [ ] Todo item\n- [ ] Call checklist';
-    const noteId = encodeURIComponent(`Notes/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
+  // Create new note flows
+  const triggerCreateNoteFlow = () => {
+    setCreateDialogTitle('Untitled Note');
+    setCreateDialogFolder(selectedFolder || 'Notes');
+    setIsNewFolderMode(false);
+    setNewFolderName('');
+    setShowCreateDialog(true);
+  };
+
+  const handleCreateNoteConfirm = async () => {
+    const folderName = isNewFolderMode ? newFolderName.trim() : createDialogFolder;
+    const cleanFolder = folderName || 'Notes';
+    const title = createDialogTitle.trim() || 'Untitled Note';
+    
+    const content = `# ${title}\n\nWrite your thoughts here...\n\n- [ ] Todo item\n- [ ] Call checklist`;
+    const noteId = encodeURIComponent(`${cleanFolder}/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
     
     setIsSaving(true);
+    setShowCreateDialog(false);
     const newId = await onAddNote(noteId, title, content);
-    setActiveNoteId(newId);
+    if (newId) {
+      setActiveNoteId(newId);
+    }
     setIsSaving(false);
   };
 
   const handleCreateNoteWithTitle = async (title: string) => {
+    const currentFolder = activeNote ? getFolderStr(activeNote.id) : 'Notes';
+    const cleanFolder = currentFolder || 'Notes';
     const content = `# ${title}\n\nWrite your thoughts here...\n\nReferenced from [[${activeNote?.title || 'previous note'}]].`;
-    const noteId = encodeURIComponent(`Notes/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
+    const noteId = encodeURIComponent(`${cleanFolder}/${title.replace(/\s+/g, '_')}_${Date.now()}.md`);
     
     setIsSaving(true);
     const newId = await onAddNote(noteId, title, content);
-    setActiveNoteId(newId);
+    if (newId) {
+      setActiveNoteId(newId);
+    }
+    setIsSaving(false);
+  };
+
+  // Move note to another folder
+  const handleMoveNote = async (note: LocalNote, newFolder: string) => {
+    const cleanFolder = newFolder.trim() || 'Notes';
+    const decoded = decodeURIComponent(note.id);
+    const parts = decoded.split('/');
+    const fileName = parts[parts.length - 1]; // e.g. Note_Title_123.md
+    
+    const newId = encodeURIComponent(`${cleanFolder}/${fileName}`);
+    
+    if (newId === note.id) return; // no change
+    
+    setIsSaving(true);
+    
+    // 1. Create a copy of the note in the new folder
+    const createdId = await onAddNote(newId, note.title, note.content);
+    
+    // 2. Delete the note in the old folder
+    if (createdId) {
+      await onDeleteNote(note.id);
+      // 3. Switch activeNoteId to the new ID so the editor stays open
+      setActiveNoteId(createdId);
+    }
+    
     setIsSaving(false);
   };
 
@@ -841,12 +920,6 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const getFolderStr = (id: string) => {
-    const decoded = decodeURIComponent(id);
-    const parts = decoded.split('/');
-    return parts.length > 1 ? parts.slice(0, -1).join(' / ') : '';
-  };
-
   return (
     <div className="notes-container">
       {/* =========================================================================
@@ -977,10 +1050,83 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
           <span style={{ display: 'none' }}>Sort</span>
         </button>
 
+        {/* Filter Folders */}
+        <div style={{ position: 'relative' }}>
+          <button 
+            onClick={() => {
+              setShowFoldersPopover(!showFoldersPopover);
+              setShowTagsPopover(false);
+            }}
+            className={`dock-btn ${selectedFolder ? 'active' : ''}`}
+            title="Filter by Folder"
+          >
+            <Folder size={13} />
+            <span style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {selectedFolder ? selectedFolder : 'Folders'}
+            </span>
+          </button>
+
+          {showFoldersPopover && (
+            <>
+              <div 
+                style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 104 }} 
+                onClick={() => setShowFoldersPopover(false)}
+              />
+              <div className="dock-tags-popover">
+                <span 
+                  onClick={() => {
+                    setSelectedFolder(null);
+                    setShowFoldersPopover(false);
+                  }}
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '0.2rem 0.45rem',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    background: !selectedFolder ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.03)',
+                    border: '1px solid ' + (!selectedFolder ? 'var(--border-active)' : 'var(--border-color)'),
+                    color: !selectedFolder ? 'var(--color-primary)' : 'var(--text-secondary)'
+                  }}
+                >
+                  All Folders
+                </span>
+                {allFolders.map(folder => {
+                  const active = selectedFolder === folder;
+                  return (
+                    <span
+                      key={folder}
+                      onClick={() => {
+                        setSelectedFolder(folder);
+                        setShowFoldersPopover(false);
+                      }}
+                      style={{
+                        fontSize: '0.68rem',
+                        padding: '0.2rem 0.45rem',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        background: active ? 'var(--color-primary-glow)' : 'rgba(255,255,255,0.03)',
+                        border: '1px solid ' + (active ? 'var(--border-active)' : 'var(--border-color)'),
+                        color: active ? 'var(--color-primary)' : 'var(--text-secondary)'
+                      }}
+                    >
+                      {folder}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="dock-divider" />
+
         {/* Filter Tags */}
         <div style={{ position: 'relative' }}>
           <button 
-            onClick={() => setShowTagsPopover(!showTagsPopover)}
+            onClick={() => {
+              setShowTagsPopover(!showTagsPopover);
+              setShowFoldersPopover(false);
+            }}
             className={`dock-btn ${selectedTag ? 'active' : ''}`}
             title="Filter by Tag"
           >
@@ -1046,7 +1192,7 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
 
         {/* Create Note */}
         <button 
-          onClick={handleCreateNote}
+          onClick={triggerCreateNoteFlow}
           className="dock-btn dock-btn-icon-only active"
           title="Create New Note"
         >
@@ -1140,6 +1286,43 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
             {/* WYSIWYG Editor Sheet */}
             <div className="wysiwyg-editor-sheet custom-scroll">
               <div className="wysiwyg-sheet-inner">
+                {/* Note Folder Selector */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  <Folder size={12} style={{ color: 'var(--color-primary)' }} />
+                  <span style={{ fontWeight: 500 }}>Folder:</span>
+                  <select
+                    value={getFolderStr(activeNote.id) || 'Notes'}
+                    onChange={async (e) => {
+                      const val = e.target.value;
+                      if (val === '+new') {
+                        const folderName = prompt('Enter new folder name:');
+                        if (folderName && folderName.trim()) {
+                          await handleMoveNote(activeNote, folderName.trim());
+                        }
+                      } else {
+                        await handleMoveNote(activeNote, val);
+                      }
+                    }}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      color: 'var(--color-primary)', 
+                      fontSize: '0.72rem', 
+                      fontWeight: 600, 
+                      cursor: 'pointer', 
+                      padding: 0,
+                      outline: 'none',
+                      width: 'auto'
+                    }}
+                  >
+                    <option value="Notes" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>Notes (Default)</option>
+                    {allFolders.filter(f => f !== 'Notes' && f !== '').map(f => (
+                      <option key={f} value={f} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>{f}</option>
+                    ))}
+                    <option value="+new" style={{ background: 'var(--bg-card)', color: 'var(--color-primary)', fontWeight: 600 }}>+ Create New Folder...</option>
+                  </select>
+                </div>
+
                 {/* Note Title Input */}
                 <input 
                   type="text" 
@@ -1305,6 +1488,154 @@ export const NotesBoard: React.FC<NotesBoardProps> = ({
                 </button>
                 <button
                   onClick={() => setWikiCreateTarget(null)}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'transparent',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-secondary)',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem'
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Note Dialog with Folder Selection */}
+        {showCreateDialog && (
+          <div style={{
+            position: 'absolute',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 300
+          }}>
+            <div className="glass-card animate-scale" style={{ padding: '1.5rem', maxWidth: '380px', width: '90%', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>Create New Note</h4>
+                <button 
+                  onClick={() => setShowCreateDialog(false)} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Title Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>Note Title</label>
+                <input 
+                  type="text" 
+                  value={createDialogTitle}
+                  onChange={(e) => setCreateDialogTitle(e.target.value)}
+                  placeholder="Untitled Note"
+                  style={{ 
+                    padding: '0.5rem 0.75rem', 
+                    borderRadius: 'var(--radius-sm)', 
+                    border: '1px solid var(--border-color)', 
+                    background: 'rgba(0,0,0,0.15)', 
+                    color: 'var(--text-primary)',
+                    fontSize: '0.8rem',
+                    outline: 'none'
+                  }}
+                  autoFocus
+                />
+              </div>
+
+              {/* Folder Selector */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>Folder Destination</label>
+                {!isNewFolderMode ? (
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <select
+                      value={createDialogFolder}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '+new') {
+                          setIsNewFolderMode(true);
+                        } else {
+                          setCreateDialogFolder(val);
+                        }
+                      }}
+                      style={{ 
+                        flex: 1,
+                        padding: '0.5rem', 
+                        borderRadius: 'var(--radius-sm)', 
+                        border: '1px solid var(--border-color)', 
+                        background: 'rgba(0,0,0,0.15)', 
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8rem',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="Notes" style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>Notes (Default)</option>
+                      {allFolders.filter(f => f !== 'Notes' && f !== '').map(f => (
+                        <option key={f} value={f} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>{f}</option>
+                      ))}
+                      <option value="+new" style={{ background: 'var(--bg-card)', color: 'var(--color-primary)', fontWeight: 600 }}>+ Create New Folder...</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: '0.4rem', flexDirection: 'column' }}>
+                    <input 
+                      type="text" 
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      placeholder="Folder Name (e.g. Projects)"
+                      style={{ 
+                        padding: '0.5rem 0.75rem', 
+                        borderRadius: 'var(--radius-sm)', 
+                        border: '1px solid var(--border-color)', 
+                        background: 'rgba(0,0,0,0.15)', 
+                        color: 'var(--text-primary)',
+                        fontSize: '0.8rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button 
+                      onClick={() => setIsNewFolderMode(false)}
+                      style={{ 
+                        background: 'transparent', 
+                        border: 'none', 
+                        color: 'var(--color-primary)', 
+                        fontSize: '0.7rem', 
+                        cursor: 'pointer', 
+                        alignSelf: 'flex-start',
+                        padding: 0
+                      }}
+                    >
+                      ← Select existing folder
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button
+                  onClick={handleCreateNoteConfirm}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: 'pointer',
+                    fontSize: '0.8rem',
+                    fontWeight: 600
+                  }}
+                >
+                  Create Note
+                </button>
+                <button
+                  onClick={() => setShowCreateDialog(false)}
                   style={{
                     padding: '0.5rem 1rem',
                     background: 'transparent',
