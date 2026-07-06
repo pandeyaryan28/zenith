@@ -104,13 +104,13 @@ html[data-style="neumorphism"] {
   --radius-md: 18px;
   --radius-lg: 28px;
 
-  --shadow-sm: 4px 4px 10px #0f1012, -4px -4px 10px #2d3038;
-  --shadow-md: 8px 8px 20px #0f1012, -8px -8px 20px #2d3038;
-  --shadow-lg: 12px 12px 30px #0f1012, -12px -12px 30px #2d3038;
+  --shadow-sm: 4px 4px 10px rgba(0, 0, 0, 0.35);
+  --shadow-md: 8px 8px 20px rgba(0, 0, 0, 0.42);
+  --shadow-lg: 12px 12px 30px rgba(0, 0, 0, 0.5);
   --shadow-glow: none;
   
-  --nm-shadow-inset: inset 3px 3px 6px #0f1012, inset -3px -3px 6px #2d3038;
-  --nm-shadow-outset: 4px 4px 10px #0f1012, -4px -4px 10px #2d3038;
+  --nm-shadow-inset: inset 3px 3px 6px rgba(0, 0, 0, 0.45);
+  --nm-shadow-outset: 4px 4px 10px rgba(0, 0, 0, 0.35);
 
   --grad-primary: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
   --grad-surface: none;
@@ -133,13 +133,13 @@ html[data-style="neumorphism"][data-theme="light"] {
   --text-secondary: #475569;
   --text-muted: #64748b;
 
-  --shadow-sm: 5px 5px 12px #c8c8c8, -5px -5px 12px #ffffff;
-  --shadow-md: 10px 10px 24px #c8c8c8, -10px -10px 24px #ffffff;
-  --shadow-lg: 14px 14px 32px #c8c8c8, -14px -14px 32px #ffffff;
+  --shadow-sm: 4px 4px 10px rgba(0, 0, 0, 0.05);
+  --shadow-md: 8px 8px 20px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 12px 12px 30px rgba(0, 0, 0, 0.11);
   --shadow-glow: none;
   
-  --nm-shadow-inset: inset 4px 4px 8px #bebebe, inset -4px -4px 8px #ffffff;
-  --nm-shadow-outset: 5px 5px 12px #c8c8c8, -5px -5px 12px #ffffff;
+  --nm-shadow-inset: inset 3px 3px 6px rgba(0, 0, 0, 0.08);
+  --nm-shadow-outset: 4px 4px 10px rgba(0, 0, 0, 0.05);
 }
 
 /* =========================================================================
