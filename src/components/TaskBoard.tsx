@@ -705,22 +705,24 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         .task-input-container.focused .task-input-icon-wrap {
           color: var(--color-primary);
         }
-        .task-input-field {
-          flex: 1;
-          min-width: 0;
-          background: transparent;
-          border: none;
-          outline: none;
-          color: var(--text-primary);
-          font-size: 0.95rem;
-          font-weight: 500;
-          padding: 0;
-          box-sizing: border-box;
-          resize: none;
-          font-family: inherit;
-          line-height: 1.4;
-          overflow-y: hidden;
-          height: auto;
+        .task-input-container textarea.task-input-field {
+          flex: 1 !important;
+          min-width: 0 !important;
+          background: transparent !important;
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
+          color: var(--text-primary) !important;
+          font-size: 0.95rem !important;
+          font-weight: 500 !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          box-sizing: border-box !important;
+          resize: none !important;
+          font-family: inherit !important;
+          line-height: 1.4 !important;
+          overflow-y: hidden !important;
+          height: auto !important;
         }
         .task-input-field::placeholder {
           color: var(--text-muted);
@@ -746,21 +748,23 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             transform: translateY(0);
           }
         }
-        .task-input-details {
-          background: transparent;
-          border: none;
-          outline: none;
-          color: var(--text-secondary);
-          font-size: 0.825rem;
-          width: 100%;
-          padding: 0.5rem 0 0 0;
-          resize: none;
-          min-height: 24px;
-          font-family: inherit;
-          line-height: 1.5;
-          box-sizing: border-box;
-          overflow-y: hidden;
-          height: auto;
+        .task-input-container textarea.task-input-details {
+          background: transparent !important;
+          border: none !important;
+          outline: none !important;
+          box-shadow: none !important;
+          color: var(--text-secondary) !important;
+          font-size: 0.825rem !important;
+          width: 100% !important;
+          padding: 0.5rem 0 0 0 !important;
+          margin: 0 !important;
+          resize: none !important;
+          min-height: 24px !important;
+          font-family: inherit !important;
+          line-height: 1.5 !important;
+          box-sizing: border-box !important;
+          overflow-y: hidden !important;
+          height: auto !important;
         }
         .task-input-details::placeholder {
           color: var(--text-muted);
