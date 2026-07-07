@@ -68,6 +68,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showDatePickerDropdown, setShowDatePickerDropdown] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [isDescFocused, setIsDescFocused] = useState(false);
   
   // Selection / Detail Panel states
   const [selectedTask, setSelectedTask] = useState<LocalTask | null>(null);
@@ -867,9 +869,9 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                   onSubmit={handleCreateTask}
                   style={{
                     background: 'var(--bg-card)',
-                    border: '1px solid var(--border-active)',
+                    border: '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-md)',
-                    padding: '1rem',
+                    padding: '0.85rem',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '0.75rem',
@@ -879,50 +881,67 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     transition: 'all var(--transition-normal)'
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    <input 
-                      type="text"
-                      placeholder="What needs to be done?"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      autoFocus
-                      disabled={adding}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        color: 'var(--text-primary)',
-                        fontSize: '0.95rem',
-                        fontWeight: 600,
-                        width: '100%',
-                        padding: 0
-                      }}
-                    />
-                    <textarea 
-                      placeholder="Add description..."
-                      value={newTaskDescription}
-                      onChange={(e) => setNewTaskDescription(e.target.value)}
-                      disabled={adding}
-                      rows={1}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.8rem',
-                        width: '100%',
-                        padding: 0,
-                        resize: 'none',
-                        minHeight: '20px',
-                        fontFamily: 'inherit',
-                        marginTop: '0.2rem'
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = `${target.scrollHeight}px`;
-                      }}
-                    />
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.15)',
+                    border: '1px solid ' + (isTitleFocused || isDescFocused ? 'var(--border-active)' : 'var(--border-color)'),
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0.65rem 0.85rem',
+                    display: 'flex',
+                    gap: '0.65rem',
+                    alignItems: 'flex-start',
+                    boxShadow: (isTitleFocused || isDescFocused) ? '0 0 10px rgba(99, 102, 241, 0.15)' : 'none',
+                    transition: 'all var(--transition-fast)'
+                  }}>
+                    <Circle size={14} style={{ color: 'var(--text-muted)', marginTop: '0.2rem', flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                      <input 
+                        type="text"
+                        placeholder="What needs to be done?"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        onFocus={() => setIsTitleFocused(true)}
+                        onBlur={() => setIsTitleFocused(false)}
+                        autoFocus
+                        disabled={adding}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          width: '100%',
+                          padding: 0
+                        }}
+                      />
+                      <textarea 
+                        placeholder="Add description..."
+                        value={newTaskDescription}
+                        onChange={(e) => setNewTaskDescription(e.target.value)}
+                        onFocus={() => setIsDescFocused(true)}
+                        onBlur={() => setIsDescFocused(false)}
+                        disabled={adding}
+                        rows={1}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          outline: 'none',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.75rem',
+                          width: '100%',
+                          padding: 0,
+                          resize: 'none',
+                          minHeight: '18px',
+                          fontFamily: 'inherit',
+                          lineHeight: '1.4'
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = `${target.scrollHeight}px`;
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.1rem 0' }} />
