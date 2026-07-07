@@ -84,6 +84,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const priorityDropdownRef = useRef<HTMLDivElement>(null);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
+  const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const detailsTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // =========================================================================
   // Parsing Helpers
@@ -218,6 +220,21 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   useEffect(() => {
     setSelectedTask(null);
   }, [activeListId]);
+
+  // Auto-grow heights for title and details textareas based on their contents
+  useEffect(() => {
+    if (titleTextareaRef.current) {
+      titleTextareaRef.current.style.height = 'auto';
+      titleTextareaRef.current.style.height = `${titleTextareaRef.current.scrollHeight}px`;
+    }
+  }, [newTaskTitle]);
+
+  useEffect(() => {
+    if (detailsTextareaRef.current) {
+      detailsTextareaRef.current.style.height = 'auto';
+      detailsTextareaRef.current.style.height = `${detailsTextareaRef.current.scrollHeight}px`;
+    }
+  }, [newTaskDescription]);
 
   // =========================================================================
   // Handlers
@@ -699,6 +716,11 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           font-weight: 500;
           padding: 0;
           box-sizing: border-box;
+          resize: none;
+          font-family: inherit;
+          line-height: 1.4;
+          overflow-y: hidden;
+          height: auto;
         }
         .task-input-field::placeholder {
           color: var(--text-muted);
@@ -733,10 +755,12 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           width: 100%;
           padding: 0.5rem 0 0 0;
           resize: none;
-          min-height: 48px;
+          min-height: 24px;
           font-family: inherit;
           line-height: 1.5;
           box-sizing: border-box;
+          overflow-y: hidden;
+          height: auto;
         }
         .task-input-details::placeholder {
           color: var(--text-muted);
@@ -1001,14 +1025,17 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                 <div className="task-input-icon-wrap">
                   {adding ? <Loader2 size={16} className="spin-slow" /> : <Plus size={16} />}
                 </div>
-                <input 
-                  type="text"
+                <textarea 
+                  ref={titleTextareaRef}
                   placeholder={`Add a task to "${taskLists.find(l => l.id === activeListId)?.title || 'list'}"...`}
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                   onFocus={() => setIsAddFocused(true)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleCreateTask(e);
+                    } else if (e.key === 'Escape') {
                       setIsAddFocused(false);
                       setNewTaskTitle('');
                       setNewTaskDue('');
@@ -1018,6 +1045,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     }
                   }}
                   disabled={adding}
+                  rows={1}
                   className="task-input-field"
                 />
               </div>
@@ -1026,6 +1054,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
               {(isAddFocused || newTaskTitle.trim()) && (
                 <div className="task-input-tray">
                   <textarea 
+                    ref={detailsTextareaRef}
                     placeholder="Add details, notes, or links... (Press Enter to save)"
                     value={newTaskDescription}
                     onChange={(e) => setNewTaskDescription(e.target.value)}
