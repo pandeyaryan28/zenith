@@ -80,7 +80,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [checkingTaskId, setCheckingTaskId] = useState<string | null>(null);
 
-  const quickAddRef = useRef<HTMLDivElement>(null);
+  const quickAddRef = useRef<HTMLFormElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const priorityDropdownRef = useRef<HTMLDivElement>(null);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
@@ -647,6 +647,168 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             border-radius: 16px !important;
           }
         }
+
+        /* Redesigned Task Input Styles */
+        .task-input-container {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid var(--border-color);
+          border-radius: 12px;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+          width: 100%;
+          box-sizing: border-box;
+          margin-top: 0.2rem;
+          overflow: hidden;
+        }
+        .task-input-container:hover {
+          background: rgba(255, 255, 255, 0.03);
+          border-color: rgba(255, 255, 255, 0.15);
+        }
+        .task-input-container.focused {
+          background: rgba(255, 255, 255, 0.04);
+          border-color: rgba(99, 102, 241, 0.45);
+          box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), var(--shadow-md);
+        }
+        .task-input-line {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          width: 100%;
+          box-sizing: border-box;
+        }
+        .task-input-icon-wrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          color: var(--text-muted);
+          transition: color 0.2s ease;
+        }
+        .task-input-container.focused .task-input-icon-wrap {
+          color: var(--color-primary);
+        }
+        .task-input-field {
+          flex: 1;
+          min-width: 0;
+          background: transparent;
+          border: none;
+          outline: none;
+          color: var(--text-primary);
+          font-size: 0.95rem;
+          font-weight: 500;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        .task-input-field::placeholder {
+          color: var(--text-muted);
+          opacity: 0.8;
+        }
+        .task-input-tray {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          padding: 0 1rem 0.85rem 1rem;
+          border-top: 1px dashed rgba(255, 255, 255, 0.06);
+          animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          box-sizing: border-box;
+          width: 100%;
+        }
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .task-input-details {
+          background: transparent;
+          border: none;
+          outline: none;
+          color: var(--text-secondary);
+          font-size: 0.825rem;
+          width: 100%;
+          padding: 0.5rem 0 0 0;
+          resize: none;
+          min-height: 48px;
+          font-family: inherit;
+          line-height: 1.5;
+          box-sizing: border-box;
+        }
+        .task-input-details::placeholder {
+          color: var(--text-muted);
+          opacity: 0.7;
+        }
+        .task-input-meta-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          width: 100%;
+          box-sizing: border-box;
+          margin-top: 0.25rem;
+        }
+        .task-meta-left {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          flex-wrap: wrap;
+        }
+        .meta-pill {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          padding: 0.35rem 0.75rem;
+          border-radius: 20px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          cursor: pointer;
+          border: 1px solid var(--border-color);
+          background: rgba(255, 255, 255, 0.02);
+          color: var(--text-secondary);
+          transition: all 0.2s ease;
+        }
+        .meta-pill:hover {
+          border-color: var(--border-hover);
+          background: rgba(255, 255, 255, 0.05);
+          color: var(--text-primary);
+        }
+        .meta-pill.active {
+          background: var(--color-primary-glow);
+          color: var(--color-primary);
+          border-color: rgba(99, 102, 241, 0.3);
+        }
+        .meta-pill-clear {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1px;
+          border-radius: 50%;
+          background: transparent;
+          cursor: pointer;
+          margin-left: 0.1rem;
+          color: var(--text-muted);
+          transition: all 0.15s ease;
+        }
+        .meta-pill-clear:hover {
+          background: rgba(239, 68, 68, 0.15);
+          color: var(--color-danger);
+        }
+        .task-meta-right {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+        }
+        .task-submit-hint {
+          font-size: 0.65rem;
+          color: var(--text-muted);
+          opacity: 0.6;
+          user-select: none;
+        }
       `}</style>
 
       {/* Main Split Grid */}
@@ -829,123 +991,64 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             </div>
 
             {/* Google Tasks Inline Quick Add */}
-            <div ref={quickAddRef}>
-              {!isAddFocused ? (
-                <div 
-                  onClick={() => setIsAddFocused(true)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255,255,255,0.02)',
-                    border: '1px dashed var(--border-color)',
-                    color: 'var(--text-muted)',
-                    cursor: 'text',
-                    transition: 'all var(--transition-fast)',
-                    marginTop: '0.2rem'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
-                    e.currentTarget.style.borderColor = 'var(--border-hover)';
-                    e.currentTarget.style.color = 'var(--text-secondary)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
-                    e.currentTarget.style.borderColor = 'var(--border-color)';
-                    e.currentTarget.style.color = 'var(--text-muted)';
-                  }}
-                >
-                  <Plus size={16} style={{ color: 'var(--color-primary)' }} />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                    Add a task to "{taskLists.find(l => l.id === activeListId)?.title || 'list'}"...
-                  </span>
+            <form 
+              ref={quickAddRef}
+              onSubmit={handleCreateTask}
+              className={`task-input-container ${isAddFocused ? 'focused' : ''}`}
+            >
+              {/* Main input line */}
+              <div className="task-input-line">
+                <div className="task-input-icon-wrap">
+                  {adding ? <Loader2 size={16} className="spin-slow" /> : <Plus size={16} />}
                 </div>
-              ) : (
-                <form 
-                  onSubmit={handleCreateTask}
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                    marginTop: '0.2rem',
-                    boxShadow: 'var(--shadow-lg)',
-                    backdropFilter: 'var(--glass-blur)',
-                    transition: 'all var(--transition-normal)',
-                    width: '100%',
-                    boxSizing: 'border-box'
+                <input 
+                  type="text"
+                  placeholder={`Add a task to "${taskLists.find(l => l.id === activeListId)?.title || 'list'}"...`}
+                  value={newTaskTitle}
+                  onChange={(e) => setNewTaskTitle(e.target.value)}
+                  onFocus={() => setIsAddFocused(true)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setIsAddFocused(false);
+                      setNewTaskTitle('');
+                      setNewTaskDue('');
+                      setNewTaskPriority('none');
+                      setNewTaskDescription('');
+                      (e.target as HTMLElement).blur();
+                    }
                   }}
-                >
-                  {/* Scrollable Text Editor Canvas */}
-                  <div 
-                    className="custom-scroll"
-                    style={{
-                      maxHeight: '220px',
-                      overflowY: 'auto',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.4rem',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      paddingRight: '0.25rem'
-                    }}
-                  >
-                    <input 
-                      type="text"
-                      placeholder="Task name"
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      autoFocus
-                      disabled={adding}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        color: 'var(--text-primary)',
-                        fontSize: '1.15rem',
-                        fontWeight: 700,
-                        width: '100%',
-                        padding: 0,
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    
-                    <textarea 
-                      placeholder="Add details, notes, or links..."
-                      value={newTaskDescription}
-                      onChange={(e) => setNewTaskDescription(e.target.value)}
-                      disabled={adding}
-                      rows={3}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        outline: 'none',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.9rem',
-                        width: '100%',
-                        padding: 0,
-                        resize: 'none',
-                        minHeight: '60px',
-                        fontFamily: 'inherit',
-                        lineHeight: '1.6',
-                        marginTop: '0.35rem',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                  </div>
+                  disabled={adding}
+                  className="task-input-field"
+                />
+              </div>
 
-                  {/* Horizontal Divider Line */}
-                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.25rem 0' }} />
+              {/* Expandable Options Tray */}
+              {(isAddFocused || newTaskTitle.trim()) && (
+                <div className="task-input-tray">
+                  <textarea 
+                    placeholder="Add details, notes, or links... (Press Enter to save)"
+                    value={newTaskDescription}
+                    onChange={(e) => setNewTaskDescription(e.target.value)}
+                    disabled={adding}
+                    rows={1}
+                    className="task-input-details"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleCreateTask(e);
+                      } else if (e.key === 'Escape') {
+                        setIsAddFocused(false);
+                        setNewTaskTitle('');
+                        setNewTaskDue('');
+                        setNewTaskPriority('none');
+                        setNewTaskDescription('');
+                        (e.target as HTMLElement).blur();
+                      }
+                    }}
+                  />
                   
-                  {/* Controls & Actions Row */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', boxSizing: 'border-box' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      
+                  <div className="task-input-meta-row">
+                    <div className="task-meta-left">
                       {/* Priority Button */}
                       <div style={{ position: 'relative' }} ref={priorityDropdownRef}>
                         <button
@@ -955,32 +1058,16 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                             setShowDatePickerDropdown(false);
                           }}
                           disabled={adding}
-                          style={{
-                            padding: '0.4rem 0.75rem',
-                            borderRadius: 'var(--radius-full)',
-                            background: newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.bg || 'rgba(255, 255, 255, 0.03)') : 'rgba(255, 255, 255, 0.03)',
-                            color: newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.color || 'var(--text-secondary)') : 'var(--text-secondary)',
-                            border: '1px solid ' + (newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.border || 'var(--border-color)') : 'var(--border-color)'),
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            transition: 'all var(--transition-fast)'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (newTaskPriority === 'none') {
-                              e.currentTarget.style.borderColor = 'var(--border-hover)';
-                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (newTaskPriority === 'none') {
-                              e.currentTarget.style.borderColor = 'var(--border-color)';
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                            }
-                          }}
+                          className={`meta-pill ${newTaskPriority !== 'none' ? 'active' : ''}`}
+                          style={
+                            newTaskPriority !== 'none' 
+                              ? {
+                                  background: getPriorityDetails(newTaskPriority)?.bg,
+                                  color: getPriorityDetails(newTaskPriority)?.color,
+                                  borderColor: getPriorityDetails(newTaskPriority)?.border
+                                }
+                              : undefined
+                          }
                         >
                           <Flag size={12} fill={newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.color || 'transparent') : 'transparent'} />
                           <span>{newTaskPriority === 'none' ? 'Priority' : (getPriorityDetails(newTaskPriority)?.label || 'None')}</span>
@@ -988,7 +1075,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         </button>
                         
                         {showPriorityDropdown && (
-                          <div style={{
+                          <div className="glass-panel" style={{
                             position: 'absolute',
                             bottom: '100%',
                             left: 0,
@@ -1056,32 +1143,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                             setShowPriorityDropdown(false);
                           }}
                           disabled={adding}
-                          style={{
-                            padding: '0.4rem 0.75rem',
-                            borderRadius: 'var(--radius-full)',
-                            background: newTaskDue ? 'var(--color-primary-glow)' : 'rgba(255, 255, 255, 0.03)',
-                            color: newTaskDue ? 'var(--color-primary)' : 'var(--text-secondary)',
-                            border: '1px solid ' + (newTaskDue ? 'rgba(99, 102, 241, 0.3)' : 'var(--border-color)'),
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            transition: 'all var(--transition-fast)'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!newTaskDue) {
-                              e.currentTarget.style.borderColor = 'var(--border-hover)';
-                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!newTaskDue) {
-                              e.currentTarget.style.borderColor = 'var(--border-color)';
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-                            }
-                          }}
+                          className={`meta-pill ${newTaskDue ? 'active' : ''}`}
                         >
                           <CalendarDays size={12} />
                           <span>
@@ -1096,18 +1158,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                 e.stopPropagation();
                                 setNewTaskDue('');
                               }}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '1px',
-                                borderRadius: '50%',
-                                background: 'rgba(99, 102, 241, 0.1)',
-                                cursor: 'pointer',
-                                marginLeft: '0.15rem'
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
+                              className="meta-pill-clear"
                             >
                               <X size={10} style={{ color: 'var(--color-danger)' }} />
                             </span>
@@ -1117,7 +1168,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         </button>
                         
                         {showDatePickerDropdown && (
-                          <div style={{
+                          <div className="glass-panel" style={{
                             position: 'absolute',
                             bottom: '100%',
                             left: 0,
@@ -1221,62 +1272,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         )}
                       </div>
                     </div>
-
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setIsAddFocused(false);
-                          setNewTaskTitle('');
-                          setNewTaskDue('');
-                          setNewTaskPriority('none');
-                          setNewTaskDescription('');
-                        }}
-                        disabled={adding}
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          padding: '0.4rem 0.75rem',
-                          background: 'transparent',
-                          color: 'var(--text-secondary)',
-                          border: 'none',
-                          cursor: 'pointer',
-                          borderRadius: 'var(--radius-sm)',
-                          transition: 'background var(--transition-fast)'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        type="submit"
-                        disabled={adding || !newTaskTitle.trim()}
-                        style={{
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          padding: '0.4rem 1rem',
-                          background: 'var(--grad-primary)',
-                          color: '#fff',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          cursor: 'pointer',
-                          opacity: !newTaskTitle.trim() ? 0.5 : 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.25rem',
-                          boxShadow: !newTaskTitle.trim() ? 'none' : 'var(--shadow-glow)',
-                          transition: 'all var(--transition-fast)'
-                        }}
-                      >
-                        {adding ? <Loader2 size={12} className="spin-slow" /> : <Plus size={12} />}
-                        <span>Add Task</span>
-                      </button>
+                    
+                    <div className="task-meta-right">
+                      <span className="task-submit-hint">Press Enter to save</span>
                     </div>
                   </div>
-                </form>
+                </div>
               )}
-            </div>
+            </form>
           </div>
 
           {/* List Scrolling Panel */}
