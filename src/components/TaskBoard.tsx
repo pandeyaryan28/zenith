@@ -688,8 +688,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         .task-input-line {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem 1rem;
+          gap: 0.95rem;
+          padding: 1rem 1.5rem;
           width: 100%;
           box-sizing: border-box;
         }
@@ -697,8 +697,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 20px;
-          height: 20px;
+          width: 22px;
+          height: 22px;
           color: var(--text-muted);
           transition: color 0.2s ease;
         }
@@ -708,19 +708,21 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         .task-input-container textarea.task-input-field {
           flex: 1 !important;
           min-width: 0 !important;
+          width: auto !important;
+          inline-size: auto !important;
           background: transparent !important;
           border: none !important;
           outline: none !important;
           box-shadow: none !important;
           color: var(--text-primary) !important;
-          font-size: 0.95rem !important;
-          font-weight: 500 !important;
+          font-size: 1.15rem !important;
+          font-weight: 600 !important;
           padding: 0 !important;
           margin: 0 !important;
           box-sizing: border-box !important;
           resize: none !important;
           font-family: inherit !important;
-          line-height: 1.4 !important;
+          line-height: 1.5 !important;
           overflow-y: hidden !important;
           height: auto !important;
         }
@@ -1027,7 +1029,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
               {/* Main input line */}
               <div className="task-input-line">
                 <div className="task-input-icon-wrap">
-                  {adding ? <Loader2 size={16} className="spin-slow" /> : <Plus size={16} />}
+                  {adding ? <Loader2 size={20} className="spin-slow" /> : <Plus size={20} />}
                 </div>
                 <textarea 
                   ref={titleTextareaRef}
