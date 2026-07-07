@@ -871,10 +871,10 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-md)',
-                    padding: '0.85rem',
+                    padding: '1rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.75rem',
+                    gap: '0.85rem',
                     marginTop: '0.2rem',
                     boxShadow: 'var(--shadow-md)',
                     backdropFilter: 'var(--glass-blur)',
@@ -882,21 +882,23 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                   }}
                 >
                   <div style={{
-                    background: 'rgba(0, 0, 0, 0.15)',
+                    background: 'rgba(0, 0, 0, 0.2)',
                     border: '1px solid ' + (isTitleFocused || isDescFocused ? 'var(--border-active)' : 'var(--border-color)'),
                     borderRadius: 'var(--radius-sm)',
-                    padding: '0.65rem 0.85rem',
+                    padding: '0.85rem 1rem',
                     display: 'flex',
-                    gap: '0.65rem',
+                    gap: '0.75rem',
                     alignItems: 'flex-start',
-                    boxShadow: (isTitleFocused || isDescFocused) ? '0 0 10px rgba(99, 102, 241, 0.15)' : 'none',
-                    transition: 'all var(--transition-fast)'
+                    boxShadow: (isTitleFocused || isDescFocused) ? '0 0 16px rgba(99, 102, 241, 0.2)' : 'none',
+                    transition: 'all var(--transition-fast)',
+                    width: '100%',
+                    boxSizing: 'border-box'
                   }}>
-                    <Circle size={14} style={{ color: 'var(--text-muted)', marginTop: '0.2rem', flexShrink: 0 }} />
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    <Circle size={16} style={{ color: 'var(--text-muted)', marginTop: '0.25rem', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                       <input 
                         type="text"
-                        placeholder="What needs to be done?"
+                        placeholder="Task name"
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         onFocus={() => setIsTitleFocused(true)}
@@ -908,14 +910,15 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                           border: 'none',
                           outline: 'none',
                           color: 'var(--text-primary)',
-                          fontSize: '0.85rem',
+                          fontSize: '1.05rem',
                           fontWeight: 600,
                           width: '100%',
-                          padding: 0
+                          padding: 0,
+                          boxSizing: 'border-box'
                         }}
                       />
                       <textarea 
-                        placeholder="Add description..."
+                        placeholder="Add description, notes, or links..."
                         value={newTaskDescription}
                         onChange={(e) => setNewTaskDescription(e.target.value)}
                         onFocus={() => setIsDescFocused(true)}
@@ -927,13 +930,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                           border: 'none',
                           outline: 'none',
                           color: 'var(--text-secondary)',
-                          fontSize: '0.75rem',
+                          fontSize: '0.85rem',
                           width: '100%',
                           padding: 0,
                           resize: 'none',
-                          minHeight: '18px',
+                          minHeight: '22px',
                           fontFamily: 'inherit',
-                          lineHeight: '1.4'
+                          lineHeight: '1.5',
+                          boxSizing: 'border-box'
                         }}
                         onInput={(e) => {
                           const target = e.target as HTMLTextAreaElement;
