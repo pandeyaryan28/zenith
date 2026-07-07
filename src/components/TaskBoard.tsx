@@ -669,7 +669,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         .task-input-container {
           background: rgba(255, 255, 255, 0.02);
           border: 1px solid var(--border-color);
-          border-radius: 12px;
+          border-radius: 16px;
           transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
           width: 100%;
           box-sizing: border-box;
@@ -705,15 +705,24 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         .task-input-container.focused .task-input-icon-wrap {
           color: var(--color-primary);
         }
+
+        /* Prevent theme styles from rendering custom input backgrounds/borders/radius on textareas */
+        .task-input-container textarea.task-input-field,
+        .task-input-container textarea.task-input-details,
+        html[data-style] .task-input-container textarea.task-input-field,
+        html[data-style] .task-input-container textarea.task-input-details {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          border-radius: 0 !important;
+        }
+
         .task-input-container textarea.task-input-field {
           flex: 1 !important;
           min-width: 0 !important;
           width: auto !important;
           inline-size: auto !important;
-          background: transparent !important;
-          border: none !important;
           outline: none !important;
-          box-shadow: none !important;
           color: var(--text-primary) !important;
           font-size: 1.15rem !important;
           font-weight: 600 !important;
@@ -734,7 +743,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
-          padding: 0 1rem 0.85rem 1rem;
+          padding: 0 1.5rem 0.85rem 1.5rem;
           border-top: 1px dashed rgba(255, 255, 255, 0.06);
           animation: slideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
           box-sizing: border-box;
@@ -751,10 +760,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           }
         }
         .task-input-container textarea.task-input-details {
-          background: transparent !important;
-          border: none !important;
           outline: none !important;
-          box-shadow: none !important;
           color: var(--text-secondary) !important;
           font-size: 0.825rem !important;
           width: 100% !important;
@@ -767,6 +773,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           box-sizing: border-box !important;
           overflow-y: hidden !important;
           height: auto !important;
+          background: transparent !important;
         }
         .task-input-details::placeholder {
           color: var(--text-muted);
