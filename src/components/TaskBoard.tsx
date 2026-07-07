@@ -68,8 +68,6 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [showDatePickerDropdown, setShowDatePickerDropdown] = useState(false);
   const [adding, setAdding] = useState(false);
-  const [isTitleFocused, setIsTitleFocused] = useState(false);
-  const [isDescFocused, setIsDescFocused] = useState(false);
   
   // Selection / Detail Panel states
   const [selectedTask, setSelectedTask] = useState<LocalTask | null>(null);
@@ -871,87 +869,83 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     background: 'var(--bg-card)',
                     border: '1px solid var(--border-color)',
                     borderRadius: 'var(--radius-md)',
-                    padding: '1rem',
+                    padding: '1.25rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.85rem',
-                    marginTop: '0.2rem',
-                    boxShadow: 'var(--shadow-md)',
-                    backdropFilter: 'var(--glass-blur)',
-                    transition: 'all var(--transition-normal)'
-                  }}
-                >
-                  <div style={{
-                    background: 'rgba(0, 0, 0, 0.2)',
-                    border: '1px solid ' + (isTitleFocused || isDescFocused ? 'var(--border-active)' : 'var(--border-color)'),
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.85rem 1rem',
-                    display: 'flex',
                     gap: '0.75rem',
-                    alignItems: 'flex-start',
-                    boxShadow: (isTitleFocused || isDescFocused) ? '0 0 16px rgba(99, 102, 241, 0.2)' : 'none',
-                    transition: 'all var(--transition-fast)',
+                    marginTop: '0.2rem',
+                    boxShadow: 'var(--shadow-lg)',
+                    backdropFilter: 'var(--glass-blur)',
+                    transition: 'all var(--transition-normal)',
                     width: '100%',
                     boxSizing: 'border-box'
-                  }}>
-                    <Circle size={16} style={{ color: 'var(--text-muted)', marginTop: '0.25rem', flexShrink: 0 }} />
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <input 
-                        type="text"
-                        placeholder="Task name"
-                        value={newTaskTitle}
-                        onChange={(e) => setNewTaskTitle(e.target.value)}
-                        onFocus={() => setIsTitleFocused(true)}
-                        onBlur={() => setIsTitleFocused(false)}
-                        autoFocus
-                        disabled={adding}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          color: 'var(--text-primary)',
-                          fontSize: '1.05rem',
-                          fontWeight: 600,
-                          width: '100%',
-                          padding: 0,
-                          boxSizing: 'border-box'
-                        }}
-                      />
-                      <textarea 
-                        placeholder="Add description, notes, or links..."
-                        value={newTaskDescription}
-                        onChange={(e) => setNewTaskDescription(e.target.value)}
-                        onFocus={() => setIsDescFocused(true)}
-                        onBlur={() => setIsDescFocused(false)}
-                        disabled={adding}
-                        rows={1}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          outline: 'none',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.85rem',
-                          width: '100%',
-                          padding: 0,
-                          resize: 'none',
-                          minHeight: '22px',
-                          fontFamily: 'inherit',
-                          lineHeight: '1.5',
-                          boxSizing: 'border-box'
-                        }}
-                        onInput={(e) => {
-                          const target = e.target as HTMLTextAreaElement;
-                          target.style.height = 'auto';
-                          target.style.height = `${target.scrollHeight}px`;
-                        }}
-                      />
-                    </div>
+                  }}
+                >
+                  {/* Scrollable Text Editor Canvas */}
+                  <div 
+                    className="custom-scroll"
+                    style={{
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.4rem',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      paddingRight: '0.25rem'
+                    }}
+                  >
+                    <input 
+                      type="text"
+                      placeholder="Task name"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      autoFocus
+                      disabled={adding}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'var(--text-primary)',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        width: '100%',
+                        padding: 0,
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                    
+                    <textarea 
+                      placeholder="Add details, notes, or links..."
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                      disabled={adding}
+                      rows={3}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.9rem',
+                        width: '100%',
+                        padding: 0,
+                        resize: 'none',
+                        minHeight: '60px',
+                        fontFamily: 'inherit',
+                        lineHeight: '1.6',
+                        marginTop: '0.35rem',
+                        boxSizing: 'border-box'
+                      }}
+                    />
                   </div>
 
-                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.1rem 0' }} />
+                  {/* Horizontal Divider Line */}
+                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.25rem 0' }} />
                   
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  {/* Controls & Actions Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      
                       {/* Priority Button */}
                       <div style={{ position: 'relative' }} ref={priorityDropdownRef}>
                         <button
@@ -962,16 +956,16 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                           }}
                           disabled={adding}
                           style={{
-                            padding: '0.35rem 0.6rem',
-                            borderRadius: 'var(--radius-sm)',
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: 'var(--radius-full)',
                             background: newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.bg || 'rgba(255, 255, 255, 0.03)') : 'rgba(255, 255, 255, 0.03)',
                             color: newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.color || 'var(--text-secondary)') : 'var(--text-secondary)',
                             border: '1px solid ' + (newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.border || 'var(--border-color)') : 'var(--border-color)'),
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: '0.7rem',
+                            gap: '0.35rem',
+                            fontSize: '0.75rem',
                             fontWeight: 600,
                             transition: 'all var(--transition-fast)'
                           }}
@@ -1063,16 +1057,16 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                           }}
                           disabled={adding}
                           style={{
-                            padding: '0.35rem 0.6rem',
-                            borderRadius: 'var(--radius-sm)',
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: 'var(--radius-full)',
                             background: newTaskDue ? 'var(--color-primary-glow)' : 'rgba(255, 255, 255, 0.03)',
                             color: newTaskDue ? 'var(--color-primary)' : 'var(--text-secondary)',
                             border: '1px solid ' + (newTaskDue ? 'rgba(99, 102, 241, 0.3)' : 'var(--border-color)'),
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.3rem',
-                            fontSize: '0.7rem',
+                            gap: '0.35rem',
+                            fontSize: '0.75rem',
                             fontWeight: 600,
                             transition: 'all var(--transition-fast)'
                           }}
@@ -1110,7 +1104,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                                 borderRadius: '50%',
                                 background: 'rgba(99, 102, 241, 0.1)',
                                 cursor: 'pointer',
-                                marginLeft: '0.1rem'
+                                marginLeft: '0.15rem'
                               }}
                               onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
                               onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
@@ -1228,7 +1222,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                       <button 
                         type="button" 
                         onClick={() => {
@@ -1242,12 +1236,16 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         style={{
                           fontSize: '0.75rem',
                           fontWeight: 600,
-                          padding: '0.3rem 0.6rem',
+                          padding: '0.4rem 0.75rem',
                           background: 'transparent',
                           color: 'var(--text-secondary)',
                           border: 'none',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          borderRadius: 'var(--radius-sm)',
+                          transition: 'background var(--transition-fast)'
                         }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         Cancel
                       </button>
@@ -1257,7 +1255,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         style={{
                           fontSize: '0.75rem',
                           fontWeight: 700,
-                          padding: '0.35rem 0.85rem',
+                          padding: '0.4rem 1rem',
                           background: 'var(--grad-primary)',
                           color: '#fff',
                           border: 'none',
@@ -1272,7 +1270,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         }}
                       >
                         {adding ? <Loader2 size={12} className="spin-slow" /> : <Plus size={12} />}
-                        <span>Add</span>
+                        <span>Add Task</span>
                       </button>
                     </div>
                   </div>
