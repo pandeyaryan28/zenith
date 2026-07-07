@@ -6,7 +6,6 @@ import {
   Trash2, 
   CheckCircle, 
   Circle, 
-  Calendar, 
   Loader2, 
   Search,
   ArrowUpDown,
@@ -18,7 +17,8 @@ import {
   ChevronRight,
   ListTodo,
   CalendarDays,
-  Sparkles
+  Sparkles,
+  Flag
 } from 'lucide-react';
 
 interface TaskBoardProps {
@@ -63,6 +63,10 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
   const [isAddFocused, setIsAddFocused] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDue, setNewTaskDue] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'high' | 'medium' | 'low' | 'none'>('none');
+  const [newTaskDescription, setNewTaskDescription] = useState('');
+  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
+  const [showDatePickerDropdown, setShowDatePickerDropdown] = useState(false);
   const [adding, setAdding] = useState(false);
   
   // Selection / Detail Panel states
@@ -78,6 +82,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
 
   const quickAddRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const priorityDropdownRef = useRef<HTMLDivElement>(null);
+  const dateDropdownRef = useRef<HTMLDivElement>(null);
 
   // =========================================================================
   // Parsing Helpers
@@ -164,23 +170,34 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     }
   }, [selectedTask?.id]);
 
-  // Click outside listener for Quick Add field
+  // Click outside listener for Quick Add field and its sub-dropdowns
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
+      // If priority dropdown is open and we click outside, close it
+      if (showPriorityDropdown && priorityDropdownRef.current && !priorityDropdownRef.current.contains(e.target as Node)) {
+        setShowPriorityDropdown(false);
+      }
+      // If date dropdown is open and we click outside, close it
+      if (showDatePickerDropdown && dateDropdownRef.current && !dateDropdownRef.current.contains(e.target as Node)) {
+        setShowDatePickerDropdown(false);
+      }
+      // If main quick add container is clicked outside
       if (quickAddRef.current && !quickAddRef.current.contains(e.target as Node)) {
-        if (!newTaskTitle.trim()) {
+        if (!newTaskTitle.trim() && !newTaskDescription.trim() && newTaskPriority === 'none' && !newTaskDue) {
           setIsAddFocused(false);
           setNewTaskDue('');
+          setNewTaskPriority('none');
+          setNewTaskDescription('');
         }
       }
     };
-    if (isAddFocused) {
+    if (isAddFocused || showPriorityDropdown || showDatePickerDropdown) {
       document.addEventListener('mousedown', handleOutsideClick);
     }
     return () => {
       document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [isAddFocused, newTaskTitle]);
+  }, [isAddFocused, newTaskTitle, newTaskDescription, newTaskPriority, newTaskDue, showPriorityDropdown, showDatePickerDropdown]);
 
   // Click outside listener for list selector dropdown
   useEffect(() => {
@@ -211,13 +228,16 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     if (!newTaskTitle.trim()) return;
     setAdding(true);
     try {
+      const notes = compileNotesField(newTaskDescription, newTaskPriority, []);
       await onAddTask(
         newTaskTitle.trim(), 
-        undefined, 
+        notes || undefined, 
         newTaskDue ? new Date(newTaskDue).toISOString() : undefined
       );
       setNewTaskTitle('');
       setNewTaskDue('');
+      setNewTaskPriority('none');
+      setNewTaskDescription('');
       // Keep focused for fast entry
     } catch (err) {
       console.error(err);
@@ -817,102 +837,371 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.75rem',
-                    padding: '0.65rem 0.85rem',
-                    borderRadius: 'var(--radius-sm)',
+                    padding: '0.75rem 1rem',
+                    borderRadius: 'var(--radius-md)',
                     background: 'rgba(255,255,255,0.02)',
-                    border: '1px solid var(--border-color)',
+                    border: '1px dashed var(--border-color)',
                     color: 'var(--text-muted)',
                     cursor: 'text',
-                    transition: 'all 0.2s ease',
+                    transition: 'all var(--transition-fast)',
                     marginTop: '0.2rem'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
                     e.currentTarget.style.borderColor = 'var(--border-hover)';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.background = 'rgba(255,255,255,0.02)';
                     e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.color = 'var(--text-muted)';
                   }}
                 >
                   <Plus size={16} style={{ color: 'var(--color-primary)' }} />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 500 }}>Add a task</span>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                    Add a task to "{taskLists.find(l => l.id === activeListId)?.title || 'list'}"...
+                  </span>
                 </div>
               ) : (
                 <form 
                   onSubmit={handleCreateTask}
                   style={{
-                    background: 'rgba(0,0,0,0.2)',
+                    background: 'var(--bg-card)',
                     border: '1px solid var(--border-active)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.65rem 0.85rem',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '0.5rem',
+                    gap: '0.75rem',
                     marginTop: '0.2rem',
-                    boxShadow: 'var(--shadow-md)'
+                    boxShadow: 'var(--shadow-md)',
+                    backdropFilter: 'var(--glass-blur)',
+                    transition: 'all var(--transition-normal)'
                   }}
                 >
-                  <input 
-                    type="text"
-                    placeholder="Title"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    autoFocus
-                    disabled={adding}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      outline: 'none',
-                      color: 'var(--text-primary)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      width: '100%',
-                      padding: 0
-                    }}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <input 
+                      type="text"
+                      placeholder="What needs to be done?"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      autoFocus
+                      disabled={adding}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'var(--text-primary)',
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        width: '100%',
+                        padding: 0
+                      }}
+                    />
+                    <textarea 
+                      placeholder="Add description..."
+                      value={newTaskDescription}
+                      onChange={(e) => setNewTaskDescription(e.target.value)}
+                      disabled={adding}
+                      rows={1}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        width: '100%',
+                        padding: 0,
+                        resize: 'none',
+                        minHeight: '20px',
+                        fontFamily: 'inherit',
+                        marginTop: '0.2rem'
+                      }}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = `${target.scrollHeight}px`;
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.1rem 0' }} />
                   
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      {/* Date icon-trigger */}
-                      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                        <input 
-                          type="date"
-                          value={newTaskDue}
-                          onChange={(e) => setNewTaskDue(e.target.value)}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {/* Priority Button */}
+                      <div style={{ position: 'relative' }} ref={priorityDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowPriorityDropdown(!showPriorityDropdown);
+                            setShowDatePickerDropdown(false);
+                          }}
                           disabled={adding}
                           style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            opacity: 0,
-                            width: '26px',
-                            height: '26px',
-                            cursor: 'pointer'
-                          }}
-                        />
-                        <button 
-                          type="button"
-                          className="btn"
-                          style={{
-                            padding: '0.3rem',
-                            borderRadius: '4px',
-                            background: newTaskDue ? 'var(--color-primary-glow)' : 'transparent',
-                            color: newTaskDue ? 'var(--color-primary)' : 'var(--text-secondary)',
-                            border: newTaskDue ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent',
+                            padding: '0.35rem 0.6rem',
+                            borderRadius: 'var(--radius-sm)',
+                            background: newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.bg || 'rgba(255, 255, 255, 0.03)') : 'rgba(255, 255, 255, 0.03)',
+                            color: newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.color || 'var(--text-secondary)') : 'var(--text-secondary)',
+                            border: '1px solid ' + (newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.border || 'var(--border-color)') : 'var(--border-color)'),
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '0.2rem'
+                            gap: '0.3rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            transition: 'all var(--transition-fast)'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (newTaskPriority === 'none') {
+                              e.currentTarget.style.borderColor = 'var(--border-hover)';
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (newTaskPriority === 'none') {
+                              e.currentTarget.style.borderColor = 'var(--border-color)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                            }
                           }}
                         >
-                          <Calendar size={13} />
-                          {newTaskDue && (
-                            <span style={{ fontSize: '0.65rem', fontWeight: 600 }}>
-                              {new Date(newTaskDue).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                          <Flag size={12} fill={newTaskPriority !== 'none' ? (getPriorityDetails(newTaskPriority)?.color || 'transparent') : 'transparent'} />
+                          <span>{newTaskPriority === 'none' ? 'Priority' : (getPriorityDetails(newTaskPriority)?.label || 'None')}</span>
+                          <ChevronDown size={10} style={{ opacity: 0.7 }} />
+                        </button>
+                        
+                        {showPriorityDropdown && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '100%',
+                            left: 0,
+                            marginBottom: '0.5rem',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '0.3rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.15rem',
+                            zIndex: 100,
+                            boxShadow: 'var(--shadow-lg)',
+                            backdropFilter: 'var(--glass-blur)',
+                            minWidth: '130px'
+                          }}>
+                            {(['high', 'medium', 'low', 'none'] as const).map((prio) => {
+                              const details = getPriorityDetails(prio) || { label: 'None', color: 'var(--text-muted)', bg: 'transparent', border: 'transparent' };
+                              const isSelected = newTaskPriority === prio;
+                              return (
+                                <button
+                                  key={prio}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewTaskPriority(prio);
+                                    setShowPriorityDropdown(false);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    gap: '0.5rem',
+                                    padding: '0.4rem 0.6rem',
+                                    background: isSelected ? 'rgba(255,255,255,0.06)' : 'transparent',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    color: 'var(--text-primary)',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'background var(--transition-fast)',
+                                    width: '100%'
+                                  }}
+                                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                                  onMouseLeave={(e) => e.currentTarget.style.background = isSelected ? 'rgba(255,255,255,0.06)' : 'transparent'}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <Flag size={11} style={{ color: details.color }} fill={prio !== 'none' ? details.color : 'transparent'} />
+                                    <span style={{ fontWeight: isSelected ? 700 : 500 }}>{details.label}</span>
+                                  </div>
+                                  {isSelected && <Check size={11} style={{ color: 'var(--color-primary)' }} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Due Date Button */}
+                      <div style={{ position: 'relative' }} ref={dateDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowDatePickerDropdown(!showDatePickerDropdown);
+                            setShowPriorityDropdown(false);
+                          }}
+                          disabled={adding}
+                          style={{
+                            padding: '0.35rem 0.6rem',
+                            borderRadius: 'var(--radius-sm)',
+                            background: newTaskDue ? 'var(--color-primary-glow)' : 'rgba(255, 255, 255, 0.03)',
+                            color: newTaskDue ? 'var(--color-primary)' : 'var(--text-secondary)',
+                            border: '1px solid ' + (newTaskDue ? 'rgba(99, 102, 241, 0.3)' : 'var(--border-color)'),
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            transition: 'all var(--transition-fast)'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!newTaskDue) {
+                              e.currentTarget.style.borderColor = 'var(--border-hover)';
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!newTaskDue) {
+                              e.currentTarget.style.borderColor = 'var(--border-color)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+                            }
+                          }}
+                        >
+                          <CalendarDays size={12} />
+                          <span>
+                            {newTaskDue 
+                              ? new Date(newTaskDue).toLocaleDateString([], { month: 'short', day: 'numeric' })
+                              : 'Due Date'
+                            }
+                          </span>
+                          {newTaskDue ? (
+                            <span 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNewTaskDue('');
+                              }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '1px',
+                                borderRadius: '50%',
+                                background: 'rgba(99, 102, 241, 0.1)',
+                                cursor: 'pointer',
+                                marginLeft: '0.1rem'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)'}
+                            >
+                              <X size={10} style={{ color: 'var(--color-danger)' }} />
                             </span>
+                          ) : (
+                            <ChevronDown size={10} style={{ opacity: 0.7 }} />
                           )}
                         </button>
+                        
+                        {showDatePickerDropdown && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '100%',
+                            left: 0,
+                            marginBottom: '0.5rem',
+                            background: 'var(--bg-surface)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '0.3rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.15rem',
+                            zIndex: 100,
+                            boxShadow: 'var(--shadow-lg)',
+                            backdropFilter: 'var(--glass-blur)',
+                            minWidth: '150px'
+                          }}>
+                            {[
+                              { label: 'Today', getValue: () => new Date().toISOString().split('T')[0] },
+                              { label: 'Tomorrow', getValue: () => {
+                                  const tomorrow = new Date();
+                                  tomorrow.setDate(tomorrow.getDate() + 1);
+                                  return tomorrow.toISOString().split('T')[0];
+                                }
+                              },
+                              { label: 'Next Week', getValue: () => {
+                                  const nextWeek = new Date();
+                                  nextWeek.setDate(nextWeek.getDate() + 7);
+                                  return nextWeek.toISOString().split('T')[0];
+                                }
+                              }
+                            ].map((item) => (
+                              <button
+                                key={item.label}
+                                type="button"
+                                onClick={() => {
+                                  setNewTaskDue(item.getValue());
+                                  setShowDatePickerDropdown(false);
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '0.4rem 0.6rem',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  color: 'var(--text-primary)',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  transition: 'background var(--transition-fast)',
+                                  width: '100%'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                              >
+                                <span>{item.label}</span>
+                              </button>
+                            ))}
+                            
+                            <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.2rem 0' }} />
+                            
+                            <div style={{ position: 'relative', width: '100%' }}>
+                              <input 
+                                type="date"
+                                value={newTaskDue}
+                                onChange={(e) => {
+                                  setNewTaskDue(e.target.value);
+                                  setShowDatePickerDropdown(false);
+                                }}
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  opacity: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  cursor: 'pointer',
+                                  zIndex: 2
+                                }}
+                              />
+                              <button
+                                type="button"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  padding: '0.4rem 0.6rem',
+                                  background: 'transparent',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  color: 'var(--text-primary)',
+                                  fontSize: '0.75rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left',
+                                  width: '100%'
+                                }}
+                              >
+                                <span>Custom Date...</span>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -923,6 +1212,8 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                           setIsAddFocused(false);
                           setNewTaskTitle('');
                           setNewTaskDue('');
+                          setNewTaskPriority('none');
+                          setNewTaskDescription('');
                         }}
                         disabled={adding}
                         style={{
@@ -943,16 +1234,18 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                         style={{
                           fontSize: '0.75rem',
                           fontWeight: 700,
-                          padding: '0.3rem 0.75rem',
+                          padding: '0.35rem 0.85rem',
                           background: 'var(--grad-primary)',
                           color: '#fff',
                           border: 'none',
-                          borderRadius: '4px',
+                          borderRadius: 'var(--radius-sm)',
                           cursor: 'pointer',
                           opacity: !newTaskTitle.trim() ? 0.5 : 1,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '0.25rem'
+                          gap: '0.25rem',
+                          boxShadow: !newTaskTitle.trim() ? 'none' : 'var(--shadow-glow)',
+                          transition: 'all var(--transition-fast)'
                         }}
                       >
                         {adding ? <Loader2 size={12} className="spin-slow" /> : <Plus size={12} />}
