@@ -328,6 +328,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const getScheduleEvents = () => {
     const filtered = events.filter(event => {
       if (event.localDeleted) return false;
+      
+      // Filter out completed tasks from schedule view
+      const isCompletedTask = event.id.startsWith('task-event-') && event.summary.startsWith('✓ Task:');
+      if (isCompletedTask) return false;
+
       const startStr = event.start.dateTime || event.start.date;
       if (!startStr) return false;
       const d = new Date(startStr);
@@ -491,6 +496,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         const isPending = event.pendingChange;
                         const catId = getEventCategory(event);
                         const cat = getCategoryDetails(catId);
+                        const isCompletedTask = event.id.startsWith('task-event-') && event.summary.startsWith('✓ Task:');
                         
                         return (
                           <div
@@ -506,7 +512,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
-                              fontWeight: 600
+                              fontWeight: 600,
+                              textDecoration: isCompletedTask ? 'line-through' : 'none',
+                              opacity: isCompletedTask ? 0.5 : 1
                             }}
                           >
                             {formatEventTime(event)} - {event.summary}
@@ -582,6 +590,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     {dayEvents.map(event => {
                       const catId = getEventCategory(event);
                       const cat = getCategoryDetails(catId);
+                      const isCompletedTask = event.id.startsWith('task-event-') && event.summary.startsWith('✓ Task:');
                       return (
                         <div
                           key={event.id}
@@ -595,11 +604,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '0.25rem',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            opacity: isCompletedTask ? 0.5 : 1
                           }}
                           className="hover-scale"
                         >
-                          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 700, 
+                            color: 'var(--text-primary)', 
+                            whiteSpace: 'nowrap', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis',
+                            textDecoration: isCompletedTask ? 'line-through' : 'none'
+                          }}>
                             {event.summary}
                           </span>
                           <span style={{ fontSize: '0.65rem', color: cat.color, fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
@@ -663,6 +681,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                         hourEvents.map(event => {
                           const catId = getEventCategory(event);
                           const cat = getCategoryDetails(catId);
+                          const isCompletedTask = event.id.startsWith('task-event-') && event.summary.startsWith('✓ Task:');
                           
                           // Duration calc
                           const start = new Date(event.start.dateTime || '');
@@ -683,12 +702,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                 justifyContent: 'space-between',
                                 alignItems: 'center',
                                 boxShadow: 'var(--shadow-sm)',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                opacity: isCompletedTask ? 0.5 : 1
                               }}
                               className="hover-scale"
                             >
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
-                                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                <span style={{ 
+                                  fontSize: '0.9rem', 
+                                  fontWeight: 700, 
+                                  color: 'var(--text-primary)',
+                                  textDecoration: isCompletedTask ? 'line-through' : 'none'
+                                }}>
                                   {event.summary}
                                 </span>
                                 {event.description && (

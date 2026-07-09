@@ -300,6 +300,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const agendaEvents = events
     .filter(e => {
       if (e.localDeleted) return false;
+
+      // Filter out completed tasks from agenda/schedule
+      const isCompletedTask = e.id.startsWith('task-event-') && e.summary.startsWith('✓ Task:');
+      if (isCompletedTask) return false;
+
       const startDateTime = e.start.dateTime || e.start.date;
       if (!startDateTime) return false;
       return startDateTime.startsWith(todayStr);
