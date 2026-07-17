@@ -268,9 +268,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   const activeTasksCount = activeTasks.length;
 
   const getTaskPriority = (notes: string = ''): 'high' | 'medium' | 'low' | 'none' => {
-    if (notes.includes('[priority: high]') || notes.includes('#p1')) return 'high';
-    if (notes.includes('[priority: medium]') || notes.includes('#p2')) return 'medium';
-    if (notes.includes('[priority: low]') || notes.includes('#p3')) return 'low';
+    const lowerNotes = notes.toLowerCase();
+    if (lowerNotes.includes('[priority: high]') || lowerNotes.includes('#p1')) return 'high';
+    if (lowerNotes.includes('[priority: medium]') || lowerNotes.includes('#p2')) return 'medium';
+    if (lowerNotes.includes('[priority: low]') || lowerNotes.includes('#p3')) return 'low';
     return 'none';
   };
   const starredTasks = activeTasks.filter(t => getTaskPriority(t.notes) === 'high');
