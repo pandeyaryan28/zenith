@@ -1762,6 +1762,62 @@
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* ── OVERALL CONSISTENCY HEATMAP CARD ─────────────────── */
+.hb-overall-heatmap-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.hb-overall-heatmap-card .heatmap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.hb-overall-heatmap-card .header-lbl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hb-overall-heatmap-card .lbl-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.hb-overall-heatmap-card .lbl-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.hb-overall-heatmap-card .heatmap-row-nodes {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 0.45rem;
+}
+
+.overall-heatmap-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.overall-heatmap-cell:hover {
+  transform: scale(1.15);
+}
+
 /* ── MEDIA QUERIES ────────────────────────────────────── */
 @media (max-width: 900px) {
   .hb-metrics-row {
@@ -1804,5 +1860,8 @@
   }
   .form-grid-2 {
     grid-template-columns: 1fr;
+  }
+  .hb-overall-heatmap-card .heatmap-row-nodes {
+    grid-template-columns: repeat(10, 1fr);
   }
 }

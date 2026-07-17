@@ -245,16 +245,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   // Check if a habit is scheduled for a specific date
   const isHabitScheduledForDate = (habit: Habit, date: Date) => {
     if (habit.archived) return false;
-    
-    // Compare dates ignoring times
-    const createdDate = new Date(habit.createdAt);
-    createdDate.setHours(0, 0, 0, 0);
-    const targetDate = new Date(date);
-    targetDate.setHours(0, 0, 0, 0);
-    
-    if (targetDate < createdDate) return false;
     if (habit.frequency === 'daily') return true;
-    
     if (habit.frequency === 'custom' && habit.daysOfWeek) {
       const dayOfWeek = date.getDay(); // 0 is Sunday, 1 is Monday...
       return habit.daysOfWeek.includes(dayOfWeek);
@@ -336,6 +327,39 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
       scheduledCount: scheduled.length,
       completedCount: completed.length,
       percent: Math.round((completed.length / scheduled.length) * 100)
+    };
+  };
+
+  // Heatmap helper functions for overall board consistency
+  const getLast30Days = () => {
+    const dates: Date[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      dates.push(d);
+    }
+    return dates;
+  };
+
+  const getHeatmapData = (date: Date) => {
+    const dateStr = getLocalDateStr(date);
+    const scheduled = habits.filter(h => isHabitScheduledForDate(h, date));
+
+    if (scheduled.length === 0) return { ratio: -1, completed: 0, total: 0 };
+    const completed = scheduled.filter(h => habitLogs[h.id]?.[dateStr]?.status === 'completed').length;
+    return { ratio: completed / scheduled.length, completed, total: scheduled.length };
+  };
+
+  const getHeatmapStyle = (ratio: number) => {
+    if (ratio < 0) return { background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.04)' };
+    if (ratio === 0) return { background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.06)' };
+    if (ratio <= 0.33) return { background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.3)' };
+    if (ratio <= 0.66) return { background: 'rgba(99, 102, 241, 0.45)', border: '1px solid rgba(99, 102, 241, 0.5)' };
+    return { 
+      background: 'var(--color-primary)', 
+      boxShadow: '0 0 10px rgba(99, 102, 241, 0.4)', 
+      border: '1px solid var(--color-primary)' 
     };
   };
 
@@ -511,6 +535,43 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
           <button onClick={openAddDrawer} className="hb-btn-create">
             <Plus size={16} strokeWidth={2.5} /> New Habit
           </button>
+        </div>
+      </div>
+
+      {/* ── 30-DAY CONSISTENCY HEATMAP ────────────────────── */}
+      <div className="hb-overall-heatmap-card">
+        <div className="heatmap-header">
+          <div className="header-lbl-group">
+            <span className="lbl-title">30-Day Consistency Grid</span>
+            <span className="lbl-desc">Aggregated completion rate of all scheduled tracks</span>
+          </div>
+          <div className="heatmap-legend">
+            <span className="legend-item"><span className="dot" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.04)' }} /> None</span>
+            <span className="legend-item"><span className="dot" style={{ background: 'rgba(99, 102, 241, 0.2)', border: '1px solid rgba(99, 102, 241, 0.3)' }} /> Low</span>
+            <span className="legend-item"><span className="dot" style={{ background: 'rgba(99, 102, 241, 0.45)', border: '1px solid rgba(99, 102, 241, 0.5)' }} /> Med</span>
+            <span className="legend-item"><span className="dot" style={{ background: 'var(--color-primary)' }} /> High</span>
+          </div>
+        </div>
+
+        <div className="heatmap-row-nodes">
+          {getLast30Days().map((date, idx) => {
+            const { ratio, completed, total } = getHeatmapData(date);
+            const formattedDate = date.toLocaleDateString(undefined, {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            });
+            return (
+              <div
+                key={idx}
+                className="overall-heatmap-cell"
+                style={getHeatmapStyle(ratio)}
+                title={ratio < 0
+                  ? `${formattedDate} — No habits scheduled`
+                  : `${formattedDate} — Completed ${completed}/${total} habits (${Math.round(ratio * 100)}%)`}
+              />
+            );
+          })}
         </div>
       </div>
 
