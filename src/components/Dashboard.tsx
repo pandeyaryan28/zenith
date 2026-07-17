@@ -87,6 +87,8 @@ interface DashboardProps {
   handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
   handleDiscardPartialSession: () => Promise<void>;
   onPomoSettingsChange: () => void;
+  pomoDistractions: string[];
+  addPomoDistraction: (text: string) => Promise<void>;
   notes: LocalNote[];
   onAddNote: (noteId: string, title: string, content: string) => Promise<string>;
   onUpdateNote: (noteId: string, title: string, content: string) => Promise<void>;
@@ -141,6 +143,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
   handleSavePartialSession,
   handleDiscardPartialSession,
   onPomoSettingsChange,
+  pomoDistractions,
+  addPomoDistraction,
   notes,
   onAddNote,
   onUpdateNote,
@@ -727,6 +731,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   handlePresetSelect={handlePresetSelect}
                   handleSavePartialSession={handleSavePartialSession}
                   handleDiscardPartialSession={handleDiscardPartialSession}
+                  pomoDistractions={pomoDistractions}
+                  addPomoDistraction={addPomoDistraction}
                 />
               } />
               <Route path="/dashboard" element={<Navigate to="/" replace />} />
@@ -763,6 +769,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   handlePresetSelect={handlePresetSelect}
                   handleSavePartialSession={handleSavePartialSession}
                   handleDiscardPartialSession={handleDiscardPartialSession}
+                  pomoDistractions={pomoDistractions}
+                  addPomoDistraction={addPomoDistraction}
                 />
               } />
               <Route path="/notes" element={

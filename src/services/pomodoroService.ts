@@ -15,6 +15,7 @@ export interface PomodoroSession {
   taskTitles: string[]; // Linked task titles (saved as snapshots)
   type: 'work' | 'shortBreak' | 'longBreak';
   completed: boolean;
+  distractions?: string[]; // Logged sudden thoughts or interruptions
 }
 
 /**

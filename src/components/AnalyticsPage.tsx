@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { LocalTask } from '../services/syncService';
 import type { Habit, HabitLog } from '../services/habitService';
 import { calculateStreak } from '../services/habitService';
@@ -34,9 +34,19 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
   };
 
   // 1. Focus Timer Metrics
-  const workSessions = pomodoroSessions.filter(s => s.type === 'work');
-  const totalFocusMinutes = workSessions.reduce((sum, s) => sum + s.durationMinutes, 0);
-  const avgFocusMinutes = workSessions.length > 0 ? Math.round(totalFocusMinutes / workSessions.length) : 0;
+  const [timeframe, setTimeframe] = useState<'today' | 'lifetime'>('lifetime');
+
+  const filteredFocusSessions = pomodoroSessions.filter(s => {
+    if (!s.completed || s.type !== 'work') return false;
+    if (timeframe === 'today') {
+      return getLocalDateStr(new Date(s.startTime)) === getLocalDateStr(new Date());
+    }
+    return true;
+  });
+
+  const totalFocusMinutes = filteredFocusSessions.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const avgFocusMinutes = filteredFocusSessions.length > 0 ? Math.round(totalFocusMinutes / filteredFocusSessions.length) : 0;
+  const workSessions = pomodoroSessions.filter(s => s.completed && s.type === 'work');
 
   // 2. Habits Metrics
   const activeHabitsCount = habits.filter(h => !h.archived).length;
@@ -142,13 +152,39 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
     <div className="glass-panel" style={{ height: '100%', overflowY: 'auto', padding: '2rem' }}>
       
       {/* Title */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'inline-flex', padding: '0.625rem', borderRadius: '0.75rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-          <TrendingUp size={22} className="text-gradient" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'inline-flex', padding: '0.625rem', borderRadius: '0.75rem', background: 'var(--color-primary-glow)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+            <TrendingUp size={22} className="text-gradient" />
+          </div>
+          <div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em', margin: 0 }}>Visual Analytics</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Track and analyze your productivity streaks and stats.</p>
+          </div>
         </div>
-        <div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>Visual Analytics</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Track and analyze your productivity streaks and stats.</p>
+
+        {/* Timeframe Selector Toggle */}
+        <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-card-nested)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-color)', width: '220px' }}>
+          {(['today', 'lifetime'] as const).map(tf => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              style={{
+                flex: 1,
+                padding: '0.45rem 0',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                borderRadius: '6px',
+                background: timeframe === tf ? 'var(--color-primary-glow)' : 'transparent',
+                border: '1px solid ' + (timeframe === tf ? 'var(--color-primary)' : 'transparent'),
+                color: timeframe === tf ? 'var(--text-primary)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              {tf === 'today' ? "Today" : "Lifetime"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -156,16 +192,20 @@ export const AnalyticsPage: React.FC<AnalyticsPageProps> = ({
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
         
         <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL FOCUS BLOCKS</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            {timeframe === 'today' ? "TODAY'S FOCUS BLOCKS" : "TOTAL FOCUS BLOCKS"}
+          </span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-primary)' }}>{workSessions.length}</span>
+            <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-primary)' }}>{filteredFocusSessions.length}</span>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>completed</span>
           </div>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Average duration: {avgFocusMinutes} minutes</span>
         </div>
 
         <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>TOTAL FOCUS HOURS</span>
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+            {timeframe === 'today' ? "TODAY'S FOCUS HOURS" : "TOTAL FOCUS HOURS"}
+          </span>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
             <span style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-secondary)' }}>
               {totalFocusMinutes >= 60 ? (totalFocusMinutes / 60).toFixed(1) : `0.${totalFocusMinutes}`}

@@ -101,10 +101,43 @@ function App() {
   const [pomoSelectedTaskIds, setPomoSelectedTaskIds] = useState<string[]>([]);
   const [activeSoundId, setActiveSoundId] = useState<string | null>(null);
   const [activePomoSessionId, setActivePomoSessionId] = useState<string | null>(null);
-  const lastSyncedMinuteRef = useRef<number>(0);
+  const [pomoDistractions, setPomoDistractions] = useState<string[]>([]);
   
+  const [currentDateStr, setCurrentDateStr] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+
+  const lastSyncedMinuteRef = useRef<number>(0);
   const audioRefs = useRef<{ [id: string]: HTMLAudioElement | null }>({});
   const pomoRestored = useRef(false);
+
+  const isSameDay = (d1: Date, d2: Date) => {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
+  };
+
+  // Dynamic Daily Reset Checker (Midnight Transition)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const d = new Date();
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (dateStr !== currentDateStr) {
+        setCurrentDateStr(dateStr);
+        // Midnight transition reset: If a focus block is active/paused, reset to fresh idle
+        if (pomoState !== 'idle') {
+          setPomoState('idle');
+          setPomoStartTime(null);
+          setActivePomoSessionId(null);
+          setPomoTimeLeft(getPresetDuration(pomoType));
+          setPomoSelectedTaskIds([]);
+          setPomoDistractions([]);
+        }
+      }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [currentDateStr, pomoState, pomoType]);
 
   // Restore Pomodoro state from LocalStorage on mount (when user and data loading is completed)
   useEffect(() => {
@@ -118,6 +151,10 @@ function App() {
           let finalState = saved.state;
           let finalStartTime = saved.startTime;
           let finalSessionId = saved.activePomoSessionId || null;
+          let finalSelectedTaskIds = saved.selectedTaskIds || [];
+          let finalDistractions = saved.distractions || [];
+
+          const isStaleSession = saved.startTime && !isSameDay(new Date(saved.startTime), new Date());
 
           if (saved.state === 'running' && saved.startTime) {
             const elapsed = Math.floor((Date.now() - new Date(saved.startTime).getTime()) / 1000);
@@ -145,7 +182,8 @@ function App() {
                     taskIds: saved.selectedTaskIds || [],
                     taskTitles,
                     type: saved.type,
-                    completed: true
+                    completed: true,
+                    distractions: saved.distractions || []
                   });
                 } catch (err) {
                   console.error("Failed to save background completed Pomodoro session:", err);
@@ -153,10 +191,27 @@ function App() {
               };
               logBackgroundSession();
               finalSessionId = null;
+              finalDistractions = [];
+            } else if (isStaleSession) {
+              // Stale running session from previous day that didn't finish
+              finalState = 'idle';
+              finalStartTime = null;
+              finalSessionId = null;
+              finalTimeLeft = getPresetDuration(saved.type || 'work');
+              finalSelectedTaskIds = [];
+              finalDistractions = [];
             } else {
               // Timer is still running, calculate remaining time
               finalTimeLeft = saved.totalDuration - elapsed;
             }
+          } else if (isStaleSession) {
+            // Stale paused or idle session from previous day
+            finalState = 'idle';
+            finalStartTime = null;
+            finalSessionId = null;
+            finalTimeLeft = getPresetDuration(saved.type || 'work');
+            finalSelectedTaskIds = [];
+            finalDistractions = [];
           }
 
           setPomoType(saved.type || 'work');
@@ -164,8 +219,9 @@ function App() {
           setPomoTotalDuration(saved.totalDuration || 1500);
           setPomoTimeLeft(finalTimeLeft);
           setPomoStartTime(finalStartTime);
-          setPomoSelectedTaskIds(saved.selectedTaskIds || []);
+          setPomoSelectedTaskIds(finalSelectedTaskIds);
           setActivePomoSessionId(finalSessionId);
+          setPomoDistractions(finalDistractions);
         } catch (e) {
           console.error("Failed to restore pomodoro state", e);
         }
@@ -183,11 +239,12 @@ function App() {
         timeLeft: pomoTimeLeft,
         startTime: pomoStartTime,
         selectedTaskIds: pomoSelectedTaskIds,
-        activePomoSessionId: activePomoSessionId
+        activePomoSessionId: activePomoSessionId,
+        distractions: pomoDistractions
       };
       localStorage.setItem(`zenith-active-pomo-${user.uid}`, JSON.stringify(stateToSave));
     }
-  }, [pomoType, pomoState, pomoTotalDuration, pomoTimeLeft, pomoStartTime, pomoSelectedTaskIds, activePomoSessionId, user]);
+  }, [pomoType, pomoState, pomoTotalDuration, pomoTimeLeft, pomoStartTime, pomoSelectedTaskIds, activePomoSessionId, pomoDistractions, user]);
 
   // Sync timeLeft when changing preset or settings while idle
   useEffect(() => {
@@ -267,6 +324,23 @@ function App() {
     }
   }, [pomoTimeLeft, pomoState]);
 
+  const addPomoDistraction = async (text: string) => {
+    if (!text.trim()) return;
+    const newDistraction = text.trim();
+    const updatedDistractions = [...pomoDistractions, newDistraction];
+    setPomoDistractions(updatedDistractions);
+    
+    // Sync to Firestore in real-time if work session is active
+    if (user && activePomoSessionId && pomoType === 'work') {
+      try {
+        const docRef = doc(db, 'users', user.uid, 'pomodoroSessions', activePomoSessionId);
+        await setDoc(docRef, { distractions: updatedDistractions }, { merge: true });
+      } catch (err) {
+        console.error("Failed to sync active session distraction:", err);
+      }
+    }
+  };
+
   const syncActiveSessionMinutes = async (minutes: number) => {
     if (!user || !activePomoSessionId || pomoType !== 'work') return;
     const docRef = doc(db, 'users', user.uid, 'pomodoroSessions', activePomoSessionId);
@@ -285,7 +359,8 @@ function App() {
         taskIds: pomoSelectedTaskIds,
         taskTitles,
         type: pomoType,
-        completed: false
+        completed: false,
+        distractions: pomoDistractions
       }, { merge: true });
     } catch (err) {
       console.error("Failed to sync active session minutes:", err);
@@ -333,13 +408,15 @@ function App() {
           taskIds: pomoSelectedTaskIds,
           taskTitles,
           type: pomoType,
-          completed: true
+          completed: true,
+          distractions: pomoDistractions
         }, { merge: true });
       }
     } catch (err) {
       console.error("Failed to save completed Pomodoro session:", err);
     } finally {
       setActivePomoSessionId(null);
+      setPomoDistractions([]);
     }
 
     const nextType = pomoType === 'work' ? 'shortBreak' : 'work';
@@ -364,6 +441,7 @@ function App() {
     setPomoTimeLeft(duration);
     setPomoStartTime(null);
     setActivePomoSessionId(null);
+    setPomoDistractions([]);
   };
 
   const adjustPomoDuration = (amount: number) => {
@@ -395,6 +473,7 @@ function App() {
     setPomoTimeLeft(dur);
     setPomoStartTime(null);
     setActivePomoSessionId(null);
+    setPomoDistractions([]);
   };
 
   const resetPomo = (savePartialCallback?: (durationMin: number, startTime: string) => void) => {
@@ -428,7 +507,8 @@ function App() {
             taskIds: pomoSelectedTaskIds,
             taskTitles,
             type: pomoType,
-            completed: false
+            completed: false,
+            distractions: pomoDistractions
           }, { merge: true });
         } else {
           await deletePomodoroSession(user.uid, activePomoSessionId);
@@ -443,6 +523,7 @@ function App() {
       setPomoTimeLeft(dur);
       setPomoStartTime(null);
       setActivePomoSessionId(null);
+      setPomoDistractions([]);
     }
   };
 
@@ -966,6 +1047,8 @@ function App() {
       handleSavePartialSession={handleSavePartialSession}
       handleDiscardPartialSession={handleDiscardPartialSession}
       onPomoSettingsChange={handlePomoSettingsChange}
+      pomoDistractions={pomoDistractions}
+      addPomoDistraction={addPomoDistraction}
     />
   );
 }

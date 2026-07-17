@@ -75,6 +75,8 @@ interface DashboardOverviewProps {
   handlePresetSelect: (type: 'work' | 'shortBreak' | 'longBreak') => void;
   handleSavePartialSession: (durationMin: number, startTimeStr: string) => Promise<void>;
   handleDiscardPartialSession: () => Promise<void>;
+  pomoDistractions: string[];
+  addPomoDistraction: (text: string) => Promise<void>;
 }
 
 const QUOTES = [
@@ -299,7 +301,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
     : 0;
 
   const completedPomosToday = pomodoroSessions.filter(s => {
-    if (s.type !== 'work') return false;
+    if (!s.completed || s.type !== 'work') return false;
     const localSessionDateStr = getLocalDateStr(new Date(s.startTime));
     return localSessionDateStr === todayStr;
   });
