@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Habit, HabitLog } from '../services/habitService';
-import type { GoogleTaskList } from '../services/googleApi';
 import { calculateStreak } from '../services/habitService';
 import {
   Plus,
@@ -14,481 +13,734 @@ import {
   BookOpen,
   Target,
   ChevronRight,
+  Info,
+  Play,
+  Pause,
+  RotateCcw,
+  Search,
+  Edit3,
+  Heart,
+  Brain,
+  Briefcase,
+  Activity,
   Award,
-  BarChart2,
   CalendarDays,
-  Info
+  CheckCircle2
 } from 'lucide-react';
 import './HabitsBoard.css';
+
+// ── COLOR PRESETS FOR THE GRADIENTS ─────────────────────────
+const COLOR_PRESETS = [
+  { name: 'Indigo Aura',   value: 'linear-gradient(135deg, #6366f1, #06b6d4)', solid: '#6366f1', glow: 'rgba(99, 102, 241, 0.35)', class: 'grad-indigo-cyan' },
+  { name: 'Emerald Forest', value: 'linear-gradient(135deg, #06b6d4, #10b981)', solid: '#10b981', glow: 'rgba(16, 185, 129, 0.35)', class: 'grad-cyan-emerald' },
+  { name: 'Sunset Fusion',  value: 'linear-gradient(135deg, #ec4899, #f97316)', solid: '#ec4899', glow: 'rgba(236, 72, 153, 0.35)', class: 'grad-pink-orange' },
+  { name: 'Violet Nebula',  value: 'linear-gradient(135deg, #a855f7, #ec4899)', solid: '#a855f7', glow: 'rgba(168, 85, 247, 0.35)', class: 'grad-purple-pink' },
+  { name: 'Solar Ember',    value: 'linear-gradient(135deg, #f59e0b, #ef4444)', solid: '#ef4444', glow: 'rgba(239, 68, 68, 0.35)', class: 'grad-amber-red' },
+  { name: 'Mint Breeze',    value: 'linear-gradient(135deg, #10b981, #84cc16)', solid: '#84cc16', glow: 'rgba(132, 204, 22, 0.35)', class: 'grad-emerald-lime' },
+];
+
+// ── CATEGORIES CONFIGURATION ────────────────────────────────
+const CATEGORIES: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+  routine: { icon: <Activity size={15} />, label: 'Routine', color: '#06b6d4' },
+  mind:    { icon: <Brain size={15} />,    label: 'Mind & Meditation', color: '#a855f7' },
+  health:  { icon: <Heart size={15} />,    label: 'Health & Fitness', color: '#10b981' },
+  work:    { icon: <Briefcase size={15} />,  label: 'Work & Learning', color: '#f59e0b' },
+  other:   { icon: <Sparkles size={15} />,  label: 'Other Habits', color: '#ec4899' },
+};
+
+const DIFFICULTY_META = {
+  easy:   { label: 'Easy',   color: '#10b981', bg: 'rgba(16, 185, 129, 0.08)', border: 'rgba(16, 185, 129, 0.2)' },
+  medium: { label: 'Medium', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.08)', border: 'rgba(245, 158, 11, 0.2)' },
+  hard:   { label: 'Hard',   color: '#ef4444', bg: 'rgba(239, 68, 68, 0.08)',  border: 'rgba(239, 68, 68, 0.2)'  },
+};
+
+const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// ── MOODS METADATA ──────────────────────────────────────────
+const MOOD_META: Record<string, { emoji: string; label: string; color: string; xpBonus?: string }> = {
+  awesome:    { emoji: '🌟', label: 'Awesome', color: '#10b981' },
+  good:       { emoji: '😊', label: 'Good', color: '#06b6d4' },
+  neutral:    { emoji: '😐', label: 'Neutral', color: '#64748b' },
+  tired:      { emoji: '🥱', label: 'Tired', color: '#f59e0b' },
+  struggling: { emoji: '🥺', label: 'Struggling', color: '#ef4444' },
+};
 
 interface HabitsBoardProps {
   habits: Habit[];
   habitLogs: { [habitId: string]: { [dateStr: string]: HabitLog } };
-  taskLists: GoogleTaskList[];
+  taskLists: any[];
   onAddHabit: (habitData: Omit<Habit, 'id' | 'createdAt' | 'archived'>) => Promise<void>;
   onUpdateHabit: (habitId: string, habitData: Partial<Habit>) => Promise<void>;
   onDeleteHabit: (habit: Habit) => Promise<void>;
   onToggleHabit: (habit: Habit, dateStr: string, currentCompleted: boolean, timeSpent?: number, note?: string) => Promise<void>;
 }
 
-const COLOR_PRESETS = [
-  { name: 'Indigo Dream',   value: 'linear-gradient(135deg, #6366f1, #06b6d4)', solid: '#6366f1', class: 'grad-indigo-cyan' },
-  { name: 'Emerald Forest', value: 'linear-gradient(135deg, #06b6d4, #10b981)', solid: '#10b981', class: 'grad-cyan-emerald' },
-  { name: 'Sunset Spark',   value: 'linear-gradient(135deg, #ec4899, #f97316)', solid: '#ec4899', class: 'grad-pink-orange' },
-  { name: 'Purple Bloom',   value: 'linear-gradient(135deg, #a855f7, #ec4899)', solid: '#a855f7', class: 'grad-purple-pink' },
-  { name: 'Solar Gold',     value: 'linear-gradient(135deg, #f59e0b, #ef4444)', solid: '#f59e0b', class: 'grad-amber-red' },
-  { name: 'Mint Breeze',    value: 'linear-gradient(135deg, #10b981, #84cc16)', solid: '#84cc16', class: 'grad-emerald-lime' },
-];
-
-const CATEGORY_META: Record<string, { icon: string; label: string; color: string }> = {
-  all:     { icon: '✦',  label: 'All',     color: '#6366f1' },
-  routine: { icon: '🔄', label: 'Routine', color: '#06b6d4' },
-  mind:    { icon: '🧘', label: 'Mind',    color: '#a855f7' },
-  health:  { icon: '🏃', label: 'Health',  color: '#10b981' },
-  work:    { icon: '💼', label: 'Work',    color: '#f59e0b' },
+// Helper to format local YYYY-MM-DD date strings
+const getLocalDateStr = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
-const DIFFICULTY_META = {
-  easy:   { label: 'Easy',   color: '#10b981', bg: 'rgba(16,185,129,0.12)' },
-  medium: { label: 'Medium', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-  hard:   { label: 'Hard',   color: '#ef4444', bg: 'rgba(239,68,68,0.12)'  },
-};
+// SVG Progress Ring Component
+const ProgressRing: React.FC<{
+  radius: number;
+  stroke: number;
+  progress: number;
+  color1?: string;
+  color2?: string;
+  gradientId: string;
+}> = ({ radius, stroke, progress, color1 = '#6366f1', color2 = '#06b6d4', gradientId }) => {
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, progress)) / 100) * circumference;
 
-const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return (
+    <svg height={radius * 2} width={radius * 2} style={{ transform: 'rotate(-90deg)' }}>
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={color1} />
+          <stop offset="100%" stopColor={color2} />
+        </linearGradient>
+      </defs>
+      <circle
+        stroke="rgba(255, 255, 255, 0.04)"
+        fill="transparent"
+        strokeWidth={stroke}
+        r={normalizedRadius}
+        cx={radius}
+        cy={radius}
+      />
+      <circle
+        stroke={`url(#${gradientId})`}
+        fill="transparent"
+        strokeWidth={stroke}
+        strokeDasharray={circumference + ' ' + circumference}
+        style={{ strokeDashoffset, transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
+        strokeLinecap="round"
+        r={normalizedRadius}
+        cx={radius}
+        cy={radius}
+      />
+    </svg>
+  );
+};
 
 export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   habits,
   habitLogs,
   onAddHabit,
+  onUpdateHabit,
   onDeleteHabit,
   onToggleHabit,
 }) => {
-  const [showAddModal, setShowAddModal]                 = useState(false);
-  const [selectedHabit, setSelectedHabit]               = useState<Habit | null>(null);
-  const [completingHabit, setCompletingHabit]           = useState<Habit | null>(null);
-  const [completionNote, setCompletionNote]             = useState('');
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState('all');
-  const [showMode, setShowMode]                         = useState<'today' | 'all'>('today');
+  // Navigation & Filtering State
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortBy, setSortBy] = useState<'name' | 'streak' | 'difficulty'>('name');
 
-  // Form state
-  const [title, setTitle]                 = useState('');
-  const [description, setDescription]     = useState('');
-  const [colorPreset, setColorPreset]     = useState(COLOR_PRESETS[0]);
-  const [frequency, setFrequency]         = useState<'daily' | 'custom'>('daily');
-  const [daysOfWeek, setDaysOfWeek]       = useState<number[]>([1, 2, 3, 4, 5]);
-  const [timeTarget, setTimeTarget]       = useState<number>(30);
-  const [category, setCategory]           = useState<string>('routine');
-  const [difficulty, setDifficulty]       = useState<'easy' | 'medium' | 'hard'>('medium');
-  const [syncToCalendar, setSyncToCalendar] = useState(false);
+  // Slide-over Drawers State
+  const [isAddEditOpen, setIsAddEditOpen] = useState(false);
+  const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
+  
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [inspectingHabit, setInspectingHabit] = useState<Habit | null>(null);
 
-  // Date helpers
-  const getLocalDateStr = (d: Date) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
+  // Journal completion Modal State
+  const [completingHabit, setCompletingHabit] = useState<Habit | null>(null);
+  const [journalNote, setJournalNote] = useState('');
+  const [selectedMood, setSelectedMood] = useState<string>('awesome');
+
+  // Inline Timer State
+  const [activeTimer, setActiveTimer] = useState<{
+    habitId: string;
+    habitTitle: string;
+    secondsRemaining: number;
+    totalSeconds: number;
+    isPlaying: boolean;
+  } | null>(null);
+
+  // Sound Beep helper
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+      osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15); // E5
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.3); // G5
+      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.45); // C6
+      
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.8);
+    } catch (e) {
+      console.error("Audio Context beep failed", e);
+    }
   };
-  const todayStr = getLocalDateStr(new Date());
-  const todayDayOfWeek = new Date().getDay();
 
-  // Habit filter logic
-  const filteredHabits = habits.filter(h => {
-    if (h.archived) return false;
-    
-    // Category filter
-    if (activeCategoryFilter !== 'all' && h.category !== activeCategoryFilter) return false;
-    
-    // Mode filter (Show scheduled today vs Show all)
-    if (showMode === 'today') {
-      if (h.frequency === 'custom' && h.daysOfWeek) {
-        if (!h.daysOfWeek.includes(todayDayOfWeek)) return false;
-      }
+  // Focus Timer interval effect
+  useEffect(() => {
+    let intervalId: any = null;
+    if (activeTimer && activeTimer.isPlaying && activeTimer.secondsRemaining > 0) {
+      intervalId = setInterval(() => {
+        setActiveTimer(prev => {
+          if (!prev) return null;
+          if (prev.secondsRemaining <= 1) {
+            clearInterval(intervalId);
+            playBeep();
+            // Automatically prompt check-off
+            const habit = habits.find(h => h.id === prev.habitId);
+            if (habit) {
+              setCompletingHabit(habit);
+              setSelectedMood('awesome');
+              setJournalNote(`Completed timed session of ${Math.round(prev.totalSeconds / 60)} minutes.`);
+            }
+            return null;
+          }
+          return {
+            ...prev,
+            secondsRemaining: prev.secondsRemaining - 1
+          };
+        });
+      }, 1000);
     }
-    
-    return true;
-  });
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [activeTimer?.isPlaying, activeTimer?.secondsRemaining, habits]);
 
-  // Calculate today's stats based on today's scheduled habits
-  const activeHabitsToday = habits.filter(h => {
-    if (h.archived) return false;
-    if (h.frequency === 'custom' && h.daysOfWeek) {
-      return h.daysOfWeek.includes(todayDayOfWeek);
+  // Form Field States (Add / Edit Habit)
+  const [formTitle, setFormTitle] = useState('');
+  const [formDesc, setFormDesc] = useState('');
+  const [formCategory, setFormCategory] = useState('routine');
+  const [formDifficulty, setFormDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+  const [formColor, setFormColor] = useState(COLOR_PRESETS[0]);
+  const [formFrequency, setFormFrequency] = useState<'daily' | 'custom'>('daily');
+  const [formDaysOfWeek, setFormDaysOfWeek] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [formTimeTarget, setFormTimeTarget] = useState<number>(15);
+  const [formSyncCalendar, setFormSyncCalendar] = useState(false);
+
+  // Parse Metadata Tag from Log Notes: `[MOOD:awesome] text`
+  const parseLogNote = (noteStr?: string): { mood?: string; text: string } => {
+    if (!noteStr) return { text: '' };
+    const moodMatch = noteStr.match(/^\[MOOD:(\w+)\]\s*(.*)$/);
+    if (moodMatch) {
+      return {
+        mood: moodMatch[1],
+        text: moodMatch[2]
+      };
+    }
+    return { text: noteStr };
+  };
+
+  // Check if a habit is scheduled for a specific date
+  const isHabitScheduledForDate = (habit: Habit, date: Date) => {
+    if (habit.archived) return false;
+    
+    // Compare dates ignoring times
+    const createdDate = new Date(habit.createdAt);
+    createdDate.setHours(0, 0, 0, 0);
+    const targetDate = new Date(date);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    if (targetDate < createdDate) return false;
+    if (habit.frequency === 'daily') return true;
+    
+    if (habit.frequency === 'custom' && habit.daysOfWeek) {
+      const dayOfWeek = date.getDay(); // 0 is Sunday, 1 is Monday...
+      return habit.daysOfWeek.includes(dayOfWeek);
     }
     return true;
-  });
+  };
 
-  const completedHabitsToday = activeHabitsToday.filter(h =>
-    habitLogs[h.id]?.[todayStr]?.status === 'completed'
+  // Get Monday-to-Sunday of the current week relative to a selected reference date
+  const getWeekDays = (refDate: Date) => {
+    const currentDay = refDate.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(refDate);
+    monday.setDate(refDate.getDate() + distanceToMonday);
+    
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const weekDays = getWeekDays(selectedDate);
+  const selectedDateStr = getLocalDateStr(selectedDate);
+
+  // Calculations for Today's Stats
+  const activeHabitsToday = habits.filter(h => isHabitScheduledForDate(h, new Date()));
+  const completedHabitsToday = activeHabitsToday.filter(h => 
+    habitLogs[h.id]?.[getLocalDateStr(new Date())]?.status === 'completed'
   );
-
-  const completionRateToday = activeHabitsToday.length > 0
+  const completionPercentToday = activeHabitsToday.length > 0
     ? Math.round((completedHabitsToday.length / activeHabitsToday.length) * 100)
     : 0;
 
-  const totalStreaks = habits.reduce((sum, h) => {
+  const totalStreakDays = habits.reduce((sum, h) => {
     const s = calculateStreak(habitLogs[h.id] || {}, h.frequency, h.daysOfWeek);
     return sum + s.currentStreak;
   }, 0);
 
-  // Form submit handler
-  const handleCreate = async (e: React.FormEvent) => {
+  // Filter habits for displaying in the main board grid
+  const displayedHabits = habits.filter(h => {
+    if (h.archived) return false;
+    
+    // Search filter
+    const matchesSearch = h.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (h.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+
+    // Category tab filter
+    if (activeCategory !== 'all' && h.category !== activeCategory) return false;
+
+    // Must be scheduled for the selected calendar day
+    return isHabitScheduledForDate(h, selectedDate);
+  }).sort((a, b) => {
+    if (sortBy === 'name') {
+      return a.title.localeCompare(b.title);
+    } else if (sortBy === 'streak') {
+      const streakA = calculateStreak(habitLogs[a.id] || {}, a.frequency, a.daysOfWeek).currentStreak;
+      const streakB = calculateStreak(habitLogs[b.id] || {}, b.frequency, b.daysOfWeek).currentStreak;
+      return streakB - streakA; // Descending
+    } else if (sortBy === 'difficulty') {
+      const diffWeight = { easy: 1, medium: 2, hard: 3 };
+      const valA = diffWeight[a.difficulty || 'medium'];
+      const valB = diffWeight[b.difficulty || 'medium'];
+      return valB - valA; // Hardest first
+    }
+    return 0;
+  });
+
+  // Calculate day completion status for the week picker navigation items
+  const getDayCompletions = (date: Date) => {
+    const dStr = getLocalDateStr(date);
+    const scheduled = habits.filter(h => isHabitScheduledForDate(h, date));
+    if (scheduled.length === 0) return { scheduledCount: 0, completedCount: 0, percent: -1 };
+    
+    const completed = scheduled.filter(h => habitLogs[h.id]?.[dStr]?.status === 'completed');
+    return {
+      scheduledCount: scheduled.length,
+      completedCount: completed.length,
+      percent: Math.round((completed.length / scheduled.length) * 100)
+    };
+  };
+
+  // Form Handlers
+  const openAddDrawer = () => {
+    setEditingHabit(null);
+    setFormTitle('');
+    setFormDesc('');
+    setFormCategory('routine');
+    setFormDifficulty('medium');
+    setFormColor(COLOR_PRESETS[0]);
+    setFormFrequency('daily');
+    setFormDaysOfWeek([1, 2, 3, 4, 5]);
+    setFormTimeTarget(15);
+    setFormSyncCalendar(false);
+    setIsAddEditOpen(true);
+  };
+
+  const openEditDrawer = (habit: Habit) => {
+    setEditingHabit(habit);
+    setFormTitle(habit.title);
+    setFormDesc(habit.description || '');
+    setFormCategory(habit.category || 'routine');
+    setFormDifficulty(habit.difficulty || 'medium');
+    const colorMatch = COLOR_PRESETS.find(p => p.class === habit.color) || COLOR_PRESETS[0];
+    setFormColor(colorMatch);
+    setFormFrequency(habit.frequency === 'weekly' ? 'custom' : habit.frequency);
+    setFormDaysOfWeek(habit.daysOfWeek || [1, 2, 3, 4, 5]);
+    setFormTimeTarget(habit.timeTargetMinutes || 15);
+    setFormSyncCalendar(habit.syncToCalendar);
+    setIsAddEditOpen(true);
+  };
+
+  const handleSaveHabit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    await onAddHabit({
-      title: title.trim(),
-      description: description.trim() || undefined,
-      color: colorPreset.class,
-      frequency: frequency === 'daily' ? 'daily' : 'custom',
-      daysOfWeek: frequency === 'custom' ? daysOfWeek : undefined,
-      timeTargetMinutes: timeTarget > 0 ? timeTarget : undefined,
-      category,
-      difficulty,
-      syncToCalendar,
-    });
-    // Reset form
-    setTitle(''); setDescription(''); setColorPreset(COLOR_PRESETS[0]);
-    setFrequency('daily'); setDaysOfWeek([1,2,3,4,5]); setTimeTarget(30);
-    setCategory('routine'); setDifficulty('medium'); setSyncToCalendar(false);
-    setShowAddModal(false);
+    if (!formTitle.trim()) return;
+
+    const dataPayload = {
+      title: formTitle.trim(),
+      description: formDesc.trim() || undefined,
+      color: formColor.class,
+      category: formCategory,
+      difficulty: formDifficulty,
+      frequency: formFrequency,
+      daysOfWeek: formFrequency === 'custom' ? formDaysOfWeek : undefined,
+      timeTargetMinutes: formTimeTarget > 0 ? formTimeTarget : undefined,
+      syncToCalendar: formSyncCalendar
+    };
+
+    if (editingHabit) {
+      await onUpdateHabit(editingHabit.id, dataPayload);
+      if (inspectingHabit?.id === editingHabit.id) {
+        setInspectingHabit(prev => prev ? { ...prev, ...dataPayload } : null);
+      }
+    } else {
+      await onAddHabit(dataPayload);
+    }
+    
+    setIsAddEditOpen(false);
+    setEditingHabit(null);
   };
 
-  const handleDayToggle = (day: number) => {
-    if (daysOfWeek.includes(day)) {
-      setDaysOfWeek(daysOfWeek.filter(d => d !== day));
+  // Day Toggle for custom week repeat choices
+  const handleFormDayToggle = (dayIndex: number) => {
+    if (formDaysOfWeek.includes(dayIndex)) {
+      setFormDaysOfWeek(formDaysOfWeek.filter(d => d !== dayIndex));
     } else {
-      setDaysOfWeek([...daysOfWeek, day].sort());
+      setFormDaysOfWeek([...formDaysOfWeek, dayIndex].sort());
     }
   };
 
-  const handleCheckClick = async (habit: Habit) => {
-    const isCompleted = habitLogs[habit.id]?.[todayStr]?.status === 'completed';
+  // Complete/Uncomplete Trigger
+  const handleCheckboxClick = async (habit: Habit) => {
+    const isCompleted = habitLogs[habit.id]?.[selectedDateStr]?.status === 'completed';
     if (isCompleted) {
-      await onToggleHabit(habit, todayStr, true);
+      // Toggle off directly
+      await onToggleHabit(habit, selectedDateStr, true);
     } else {
+      // Open quick journal reflection modal
       setCompletingHabit(habit);
-      setCompletionNote('');
+      setJournalNote('');
+      setSelectedMood('awesome');
     }
   };
 
-  const handleSaveCompletionNote = async (skip = false) => {
+  const handleSaveJournalLog = async (skip = false) => {
     if (!completingHabit) return;
-    const noteText = skip ? '' : completionNote.trim();
-    await onToggleHabit(completingHabit, todayStr, false, completingHabit.timeTargetMinutes, noteText);
+    const finalNote = skip 
+      ? '' 
+      : `[MOOD:${selectedMood}] ${journalNote.trim()}`;
+    
+    await onToggleHabit(completingHabit, selectedDateStr, false, completingHabit.timeTargetMinutes, finalNote);
+    
     setCompletingHabit(null);
-    setCompletionNote('');
+    setJournalNote('');
   };
 
-  // Heatmap helper functions
-  const getLast30Days = () => {
-    const dates: Date[] = [];
-    const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      dates.push(d);
-    }
-    return dates;
+  // Details side-drawer selector
+  const openInspectingDrawer = (habit: Habit) => {
+    setInspectingHabit(habit);
+    setIsDetailsOpen(true);
   };
 
-  const getHeatmapData = (date: Date) => {
-    const dateStr = getLocalDateStr(date);
-    const dayOfWeek = date.getDay();
-    const scheduled = habits.filter(h => {
-      const created = new Date(h.createdAt); created.setHours(0,0,0,0);
-      const target  = new Date(date);        target.setHours(0,0,0,0);
-      if (target < created || h.archived) return false;
-      if (h.frequency === 'custom' && h.daysOfWeek) return h.daysOfWeek.includes(dayOfWeek);
-      return true;
+  // Timer play controls
+  const handleStartTimer = (habit: Habit, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const durationMins = habit.timeTargetMinutes || 15;
+    setActiveTimer({
+      habitId: habit.id,
+      habitTitle: habit.title,
+      secondsRemaining: durationMins * 60,
+      totalSeconds: durationMins * 60,
+      isPlaying: true
     });
-
-    if (scheduled.length === 0) return { ratio: -1 };
-    const completed = scheduled.filter(h => habitLogs[h.id]?.[dateStr]?.status === 'completed').length;
-    return { ratio: completed / scheduled.length, completed, total: scheduled.length };
   };
-
-  const getHeatmapStyle = (ratio: number) => {
-    if (ratio < 0) return { background: 'rgba(255,255,255,0.02)' };
-    if (ratio === 0)   return { background: 'rgba(255,255,255,0.06)' };
-    if (ratio <= 0.33) return { background: 'rgba(99,102,241,0.22)' };
-    if (ratio <= 0.66) return { background: 'rgba(99,102,241,0.52)' };
-    return                    { background: 'rgba(99,102,241,0.9)', boxShadow: '0 0 10px rgba(99,102,241,0.45)' };
-  };
-
-  const getPresetFromClass = (cls?: string) =>
-    COLOR_PRESETS.find(p => p.class === cls) || COLOR_PRESETS[0];
-
-  // SVG Progress Ring metrics
-  const ringR = 34;
-  const ringC = 2 * Math.PI * ringR;
-  const ringOffset = ringC - (completionRateToday / 100) * ringC;
-
-  const last30 = getLast30Days();
 
   return (
-    <div className="habits-container">
-      {/* ── HEADER PANEL ─────────────────────────────────── */}
-      <div className="habits-header">
-        
-        {/* Title & Action Row */}
-        <div className="habits-title-row">
-          <div>
-            <h2>
-              <span style={{ background: 'var(--grad-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                Discipline Dashboard
-              </span>
-            </h2>
-            <p>Track your daily commitments, maintain streaks, and build habits.</p>
+    <div className="hb-root">
+      
+      {/* ── METRICS DASHBOARD HEADER ──────────────────────── */}
+      <div className="hb-hero">
+        <div className="hb-hero-title">
+          <h2>Discipline Dashboard</h2>
+          <p>Design your daily structure, build focus, and reflect on consistency.</p>
+        </div>
+
+        <div className="hb-metrics-row">
+          {/* Circular Completion Ring */}
+          <div className="hb-metric-card progress-ring-card">
+            <div className="ring-container">
+              <ProgressRing
+                radius={36}
+                stroke={4.5}
+                progress={completionPercentToday}
+                color1="#6366f1"
+                color2="#06b6d4"
+                gradientId="dash-completion-ring"
+              />
+              <span className="percent-text">{completionPercentToday}%</span>
+            </div>
+            <div className="metric-info">
+              <div className="metric-lbl">TODAY'S COMPLETIONS</div>
+              <div className="metric-val">{completedHabitsToday.length} / {activeHabitsToday.length}</div>
+              <div className="metric-desc">scheduled habits done today</div>
+            </div>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="habits-btn-add"
-          >
-            <Plus size={16} style={{ strokeWidth: 3 }} /> New Habit
+
+          {/* Active Streaks count */}
+          <div className="hb-metric-card streak-card">
+            <div className="metric-icon-wrap" style={{ background: 'rgba(249, 115, 22, 0.08)' }}>
+              <Flame size={20} style={{ color: '#f97316' }} fill="rgba(249, 115, 22, 0.2)" />
+            </div>
+            <div className="metric-info">
+              <div className="metric-lbl">COMBINED STREAK</div>
+              <div className="metric-val text-streak">{totalStreakDays}d</div>
+              <div className="metric-desc">accumulated consecutive days</div>
+            </div>
+          </div>
+
+          {/* Active Tracked Habits */}
+          <div className="hb-metric-card track-card">
+            <div className="metric-icon-wrap" style={{ background: 'rgba(16, 185, 129, 0.08)' }}>
+              <Target size={18} style={{ color: '#10b981' }} />
+            </div>
+            <div className="metric-info">
+              <div className="metric-lbl">MONITORED TRACKS</div>
+              <div className="metric-val text-success">{habits.filter(h => !h.archived).length}</div>
+              <div className="metric-desc">active habits cataloged</div>
+            </div>
+          </div>
+
+          {/* Create Button */}
+          <button onClick={openAddDrawer} className="hb-btn-create">
+            <Plus size={16} strokeWidth={2.5} /> New Habit
           </button>
-        </div>
-
-        {/* Stats Row */}
-        <div className="habits-stats-row">
-          {/* Today's Progress Card */}
-          <div className="habits-stat-card progress-card">
-            <div style={{ position: 'relative', width: '70px', height: '70px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg style={{ transform: 'rotate(-90deg)', position: 'absolute' }} width="70" height="70">
-                <circle cx="35" cy="35" r={ringR} stroke="rgba(255,255,255,0.04)" strokeWidth="4.5" fill="transparent" />
-                <circle
-                  cx="35" cy="35" r={ringR}
-                  stroke="url(#ring-gradient)"
-                  strokeWidth="4.5" fill="transparent"
-                  strokeDasharray={ringC}
-                  strokeDashoffset={ringOffset}
-                  strokeLinecap="round"
-                  style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
-                />
-                <defs>
-                  <linearGradient id="ring-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366f1" />
-                    <stop offset="100%" stopColor="#06b6d4" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <span style={{ fontSize: '1.05rem', fontWeight: 800 }}>{completionRateToday}%</span>
-            </div>
-            <div>
-              <div className="habits-stat-label">TODAY'S SCORE</div>
-              <div className="habits-stat-value" style={{ fontSize: '1.25rem', marginTop: '0.15rem' }}>
-                {completedHabitsToday.length} / {activeHabitsToday.length}
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>completions today</div>
-            </div>
-          </div>
-
-          {/* Current Streak Card */}
-          <div className="habits-stat-card streak-card">
-            <div className="habits-stat-icon-wrapper" style={{ background: 'rgba(249,115,22,0.1)' }}>
-              <Flame size={22} style={{ color: '#f97316' }} fill="rgba(249,115,22,0.3)" />
-            </div>
-            <div>
-              <div className="habits-stat-label">TOTAL STREAK</div>
-              <div className="habits-stat-value" style={{ color: '#f97316' }}>{totalStreaks}</div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>consecutive days</div>
-            </div>
-          </div>
-
-          {/* Habits count */}
-          <div className="habits-stat-card active-card">
-            <div className="habits-stat-icon-wrapper" style={{ background: 'rgba(16,185,129,0.1)' }}>
-              <Target size={20} style={{ color: '#10b981' }} />
-            </div>
-            <div>
-              <div className="habits-stat-label">ACTIVE TRACKS</div>
-              <div className="habits-stat-value" style={{ color: '#10b981' }}>
-                {habits.filter(h => !h.archived).length}
-              </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>monitored habits</div>
-            </div>
-          </div>
-        </div>
-
-        {/* 30-Day Heatmap Card */}
-        <div className="habits-heatmap-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.55rem' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, letterSpacing: '0.07em' }}>
-              30-DAY CONSISTENCY MAP
-            </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>Less</span>
-              {[0, 0.3, 0.6, 1].map((r, i) => (
-                <div key={i} style={{ width: '9px', height: '9px', borderRadius: '2px', ...getHeatmapStyle(r) }} />
-              ))}
-              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>More</span>
-            </div>
-          </div>
-          <div className="habits-heatmap-grid">
-            {last30.map((date, idx) => {
-              const { ratio, completed, total } = getHeatmapData(date) as any;
-              return (
-                <div
-                  key={idx}
-                  className="habits-heatmap-node"
-                  title={ratio < 0
-                    ? date.toLocaleDateString()
-                    : `${date.toLocaleDateString()} — ${completed ?? 0}/${total ?? 0} habits completed`}
-                  style={getHeatmapStyle(ratio)}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Filters and View modes panel */}
-        <div className="habits-filter-bar">
-          <div className="habits-category-pills">
-            {Object.entries(CATEGORY_META).map(([id, meta]) => {
-              const active = activeCategoryFilter === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setActiveCategoryFilter(id)}
-                  className={`habits-category-pill ${active ? 'active' : ''}`}
-                >
-                  <span style={{ fontSize: '0.8rem' }}>{meta.icon}</span>
-                  {meta.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Show Mode Toggle Switcher */}
-          <div className="habits-mode-switcher">
-            <button
-              onClick={() => setShowMode('today')}
-              className={`habits-mode-btn ${showMode === 'today' ? 'active' : ''}`}
-            >
-              Today's Schedule
-            </button>
-            <button
-              onClick={() => setShowMode('all')}
-              className={`habits-mode-btn ${showMode === 'all' ? 'active' : ''}`}
-            >
-              Show All Habits
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* ── HABITS GRID CONTAINER ─────────────────────────────── */}
-      <div className="habits-grid-container custom-scroll">
-        {filteredHabits.length === 0 ? (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '5rem 2rem', textAlign: 'center',
-            border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)',
-            background: 'rgba(0,0,0,0.15)'
-          }}>
-            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: 'rgba(99,102,241,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '1.25rem' }}>
-              <Sparkles size={24} style={{ color: 'var(--color-primary)' }} />
+      {/* ── WEEK CALENDAR NAVIGATION SLIDER ───────────────── */}
+      <div className="hb-week-navigation">
+        <div className="week-label">
+          <CalendarRangeIcon className="lbl-icon" />
+          <span>Week Calendar Navigation</span>
+        </div>
+        <div className="week-days-row">
+          {weekDays.map((day, idx) => {
+            const dayStr = getLocalDateStr(day);
+            const isToday = getLocalDateStr(new Date()) === dayStr;
+            const isSelected = getLocalDateStr(selectedDate) === dayStr;
+            const stats = getDayCompletions(day);
+            const dayOfWeekIdx = day.getDay();
+            
+            return (
+              <button
+                key={idx}
+                onClick={() => setSelectedDate(day)}
+                className={`week-day-btn ${isSelected ? 'selected' : ''} ${isToday ? 'today' : ''}`}
+              >
+                <div className="day-name">{DAYS_SHORT[dayOfWeekIdx]}</div>
+                <div className="day-num">{day.getDate()}</div>
+                
+                {/* Visual completion ring inside weekday chip */}
+                {stats.scheduledCount > 0 ? (
+                  <div className="day-dot-indicator">
+                    <div
+                      className="indicator-fill"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        background: stats.percent === 100 
+                          ? 'var(--color-success)' 
+                          : `conic-gradient(var(--color-primary) ${stats.percent}%, rgba(255,255,255,0.06) ${stats.percent}%)`
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="day-dot-indicator rest">
+                    <span className="dot" />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── FILTER & SEARCH TOOLBAR ───────────────────────── */}
+      <div className="hb-toolbar">
+        {/* Category tabs */}
+        <div className="category-tabs">
+          <button
+            onClick={() => setActiveCategory('all')}
+            className={`cat-tab ${activeCategory === 'all' ? 'active' : ''}`}
+          >
+            All Tracks
+          </button>
+          {Object.entries(CATEGORIES).map(([id, meta]) => (
+            <button
+              key={id}
+              onClick={() => setActiveCategory(id)}
+              className={`cat-tab ${activeCategory === id ? 'active' : ''}`}
+              style={{ '--cat-color': meta.color } as any}
+            >
+              <span className="cat-icon">{meta.icon}</span>
+              {meta.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search and Sort controls */}
+        <div className="filter-controls">
+          <div className="search-box">
+            <Search size={14} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search habits..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="clear-search">
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          <select
+            className="sort-dropdown"
+            value={sortBy}
+            onChange={e => setSortBy(e.target.value as any)}
+          >
+            <option value="name">Sort: Name</option>
+            <option value="streak">Sort: Streak</option>
+            <option value="difficulty">Sort: Difficulty</option>
+          </select>
+        </div>
+      </div>
+
+      {/* ── HABITS BOARD GRID ─────────────────────────────── */}
+      <div className="hb-grid-pane">
+        {displayedHabits.length === 0 ? (
+          <div className="hb-empty-state">
+            <div className="empty-icon-wrap">
+              <Sparkles size={22} />
             </div>
-            <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.35rem 0' }}>No Habits Found</h4>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '280px', margin: 0 }}>
-              {showMode === 'today' 
-                ? 'No habits scheduled for today. Toggle "Show All Habits" or create a new habit.'
-                : 'Create a new habit to start tracking your self discipline goals!'}
+            <h3>No habits scheduled</h3>
+            <p>
+              {searchQuery 
+                ? 'No habits match your search criteria.' 
+                : 'There are no habits scheduled for this day of the week. Adjust category filters or create a new habit.'}
             </p>
+            {!searchQuery && (
+              <button onClick={openAddDrawer} className="hb-btn-create-empty">
+                Create First Habit
+              </button>
+            )}
           </div>
         ) : (
-          <div className="habits-grid">
-            {filteredHabits.map(habit => {
-              const logs       = habitLogs[habit.id] || {};
-              const isCompleted = logs[todayStr]?.status === 'completed';
-              const streakData  = calculateStreak(logs, habit.frequency, habit.daysOfWeek);
-              const preset      = getPresetFromClass(habit.color);
-              const diffMeta    = DIFFICULTY_META[habit.difficulty || 'medium'];
-              const catMeta     = CATEGORY_META[habit.category || 'routine'] || CATEGORY_META.routine;
-
-              // Check if scheduled today
-              let isScheduledToday = true;
-              if (habit.frequency === 'custom' && habit.daysOfWeek) {
-                isScheduledToday = habit.daysOfWeek.includes(todayDayOfWeek);
-              }
+          <div className="hb-habits-grid">
+            {displayedHabits.map(habit => {
+              const logs = habitLogs[habit.id] || {};
+              const isCompleted = logs[selectedDateStr]?.status === 'completed';
+              const streakInfo = calculateStreak(logs, habit.frequency, habit.daysOfWeek);
+              const isTimerRunning = activeTimer?.habitId === habit.id;
+              
+              const categoryMeta = CATEGORIES[habit.category || 'routine'] || CATEGORIES.other;
+              const difficultyMeta = DIFFICULTY_META[habit.difficulty || 'medium'];
+              const presetColor = COLOR_PRESETS.find(p => p.class === habit.color) || COLOR_PRESETS[0];
 
               return (
                 <div
                   key={habit.id}
-                  className={`habit-card ${isCompleted ? 'completed' : ''}`}
+                  onClick={() => openInspectingDrawer(habit)}
+                  className={`hb-card-item ${isCompleted ? 'is-completed' : ''}`}
+                  style={{
+                    '--card-glow-color': presetColor.glow,
+                    '--card-theme-color': presetColor.solid
+                  } as any}
                 >
-                  <div className="habit-card-accent" style={{ background: isCompleted ? 'var(--color-success)' : preset.value }} />
+                  {/* Decorative Gradient Background Aura */}
+                  <div className="card-aura-glow" style={{ background: presetColor.value }} />
 
-                  <div className="habit-card-body">
-                    <div className="habit-card-header">
-                      {/* Interactive check btn */}
-                      <button
-                        onClick={() => handleCheckClick(habit)}
-                        className="habit-check-btn"
-                        title={isCompleted ? 'Mark incomplete' : 'Complete habit'}
+                  <div className="card-top">
+                    {/* Circle Checkbox Trigger */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCheckboxClick(habit);
+                      }}
+                      className={`card-check-trigger ${isCompleted ? 'active' : ''}`}
+                      style={{
+                        borderColor: isCompleted ? 'var(--color-success)' : `${presetColor.solid}3A`,
+                        background: isCompleted ? 'var(--color-success)' : 'transparent',
+                        color: '#ffffff'
+                      }}
+                    >
+                      {isCompleted && <Check size={13} strokeWidth={3.5} />}
+                    </button>
+
+                    {/* Habit Info Content */}
+                    <div className="card-info">
+                      <div className="card-title-row">
+                        <span className="card-cat-indicator" style={{ color: categoryMeta.color }}>
+                          {categoryMeta.icon}
+                        </span>
+                        <h4>{habit.title}</h4>
+                      </div>
+                      {habit.description && <p className="card-desc">{habit.description}</p>}
+                    </div>
+                  </div>
+
+                  <div className="card-bottom" onClick={(e) => e.stopPropagation()}>
+                    <div className="badges-group">
+                      {/* Difficulty Badge */}
+                      <span
+                        className="lbl-badge difficulty"
                         style={{
-                          border: isCompleted ? 'none' : `2px solid ${preset.solid}50`,
-                          background: isCompleted ? 'var(--color-success)' : 'transparent',
-                          color: '#fff',
+                          color: difficultyMeta.color,
+                          background: difficultyMeta.bg,
+                          borderColor: difficultyMeta.border
                         }}
                       >
-                        {isCompleted && <Check size={14} style={{ strokeWidth: 3 }} />}
-                      </button>
+                        {difficultyMeta.label}
+                      </span>
 
-                      {/* Info block */}
-                      <div className="habit-info">
-                        <div className="habit-info-title">
-                          <span style={{ fontSize: '0.9rem' }}>{catMeta.icon}</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {habit.title}
-                          </span>
-                        </div>
-                        {habit.description && (
-                          <p className="habit-info-desc">{habit.description}</p>
-                        )}
-                      </div>
+                      {/* Timer Target Trigger */}
+                      {habit.timeTargetMinutes && (
+                        <button
+                          onClick={(e) => handleStartTimer(habit, e)}
+                          className={`lbl-badge timer-trigger ${isTimerRunning ? 'running' : ''}`}
+                          title="Start focus timer session"
+                        >
+                          {isTimerRunning ? (
+                            <>
+                              <span className="timer-pulse" />
+                              <span>{Math.floor((activeTimer?.secondsRemaining || 0) / 60)}m left</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play size={10} strokeWidth={3} />
+                              <span>{habit.timeTargetMinutes}m target</span>
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
 
-                    {/* Bottom meta row */}
-                    <div className="habit-card-footer">
-                      <div className="habit-meta-badges">
-                        {/* Difficulty badge */}
-                        <span className="habit-badge" style={{ color: diffMeta.color, background: diffMeta.bg }}>
-                          {diffMeta.label}
-                        </span>
+                    <div className="actions-group">
+                      {/* Streak Indicator */}
+                      {streakInfo.currentStreak > 0 && (
+                        <div className="lbl-badge streak-badge" title="Active consecutive streak">
+                          <Flame size={12} fill="#f97316" stroke="none" />
+                          <span>{streakInfo.currentStreak}d</span>
+                        </div>
+                      )}
 
-                        {/* Duration target */}
-                        {habit.timeTargetMinutes && (
-                          <span className="habit-duration">
-                            <Clock size={11} />
-                            {habit.timeTargetMinutes}m
-                          </span>
-                        )}
-
-                        {/* Rest day indicator when showing all */}
-                        {showMode === 'all' && !isScheduledToday && (
-                          <span className="habit-badge" style={{ color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)' }}>
-                            Rest Day
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="habit-stats-badges">
-                        {/* Streak Badge */}
-                        {streakData.currentStreak > 0 && (
-                          <div className="habit-streak-pill">
-                            <Flame size={12} fill="#f97316" />
-                            <span>{streakData.currentStreak}d</span>
-                          </div>
-                        )}
-
-                        {/* Details Modal Trigger */}
-                        <button
-                          onClick={() => setSelectedHabit(habit)}
-                          className="habit-detail-btn"
-                          title="View journal & history logs"
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                      </div>
+                      {/* Slide-over details drawer button */}
+                      <button
+                        onClick={() => openInspectingDrawer(habit)}
+                        className="btn-details-arrow"
+                        title="View history journals and trends"
+                      >
+                        <ChevronRight size={13} />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -498,326 +750,362 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
         )}
       </div>
 
-      {/* ══════════════════════════════════════════════
-          ADD HABIT MODAL drawer
-      ══════════════════════════════════════════════ */}
-      {showAddModal && (
-        <div className="habits-overlay">
-          <form onSubmit={handleCreate} className="habits-modal" style={{ maxWidth: '460px' }}>
-            <div className="habits-modal-header">
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, fontFamily: 'var(--font-display)' }}>Create New Habit</h3>
-                <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>Build self-discipline over time</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '8px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)' }}
-              >
-                <X size={15} />
-              </button>
+      {/* ── SLIDE-OVER DRAWER: CREATE / EDIT HABIT ────────── */}
+      <div className={`drawer-overlay ${isAddEditOpen ? 'is-active' : ''}`} onClick={() => setIsAddEditOpen(false)}>
+        <form
+          onSubmit={handleSaveHabit}
+          onClick={(e) => e.stopPropagation()}
+          className={`drawer-container ${isAddEditOpen ? 'is-active' : ''}`}
+        >
+          <div className="drawer-header">
+            <div>
+              <h3>{editingHabit ? 'Modify Habit' : 'Assemble New Habit'}</h3>
+              <p>{editingHabit ? 'Refine details and targets' : 'Establish targets for self-discipline'}</p>
             </div>
+            <button type="button" className="btn-close-drawer" onClick={() => setIsAddEditOpen(false)}>
+              <X size={16} />
+            </button>
+          </div>
 
-            <div className="habits-modal-body custom-scroll">
-              {/* Title */}
-              <div className="habits-form-group">
-                <label className="habits-form-label">Habit Title</label>
-                <input
-                  type="text"
-                  className="habits-form-input"
-                  placeholder="e.g. Read books, Gym session, Meditate"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  required
-                  maxLength={40}
-                />
-              </div>
-
-              {/* Description */}
-              <div className="habits-form-group">
-                <label className="habits-form-label">Description / Motivation (optional)</label>
-                <input
-                  type="text"
-                  className="habits-form-input"
-                  placeholder="Keep it short and encouraging"
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                  maxLength={80}
-                />
-              </div>
-
-              {/* Category & Difficulty */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-                <div className="habits-form-group">
-                  <label className="habits-form-label">Category</label>
-                  <select className="habits-form-select" value={category} onChange={e => setCategory(e.target.value)}>
-                    <option value="routine">🔄 Routine</option>
-                    <option value="mind">🧘 Mind / Meditation</option>
-                    <option value="health">🏃 Health / Fitness</option>
-                    <option value="work">💼 Work / Learning</option>
-                  </select>
-                </div>
-                <div className="habits-form-group">
-                  <label className="habits-form-label">Difficulty</label>
-                  <select className="habits-form-select" value={difficulty} onChange={e => setDifficulty(e.target.value as any)}>
-                    <option value="easy">🟢 Easy</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="hard">🔴 Hard</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Color accent selection */}
-              <div className="habits-form-group">
-                <label className="habits-form-label">Card Accent Gradient</label>
-                <div className="habits-colors-grid">
-                  {COLOR_PRESETS.map(preset => {
-                    const isSelected = colorPreset.name === preset.name;
-                    return (
-                      <button
-                        key={preset.name}
-                        type="button"
-                        onClick={() => setColorPreset(preset)}
-                        className={`habits-color-dot ${isSelected ? 'selected' : ''}`}
-                        title={preset.name}
-                        style={{ background: preset.value }}
-                      />
-                    );
-                  })}
-                </div>
-                <div style={{ height: '4px', borderRadius: '2px', background: colorPreset.value, transition: 'background 0.25s ease', marginTop: '0.2rem' }} />
-              </div>
-
-              {/* Schedule options */}
-              <div className="habits-form-group">
-                <label className="habits-form-label">Repeat Schedule</label>
-                <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: '0.25rem', borderRadius: 'var(--radius-sm)', gap: '0.25rem', border: '1px solid var(--border-color)' }}>
-                  {(['daily', 'custom'] as const).map(f => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => setFrequency(f)}
-                      style={{
-                        flex: 1, padding: '0.45rem', fontSize: '0.8rem', fontWeight: 700, borderRadius: '6px', border: 'none', cursor: 'pointer',
-                        background: frequency === f ? 'rgba(99,102,241,0.15)' : 'transparent',
-                        color: frequency === f ? '#fff' : 'var(--text-secondary)',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      {f === 'daily' ? 'Everyday' : 'Specific Days'}
-                    </button>
-                  ))}
-                </div>
-
-                {frequency === 'custom' && (
-                  <div className="habits-days-grid" style={{ marginTop: '0.35rem' }}>
-                    {DAYS_SHORT.map((dayChar, index) => {
-                      const isActive = daysOfWeek.includes(index);
-                      return (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => handleDayToggle(index)}
-                          className={`habits-day-btn ${isActive ? 'active' : ''}`}
-                        >
-                          {dayChar[0]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Time target duration slider */}
-              <div className="habits-form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label className="habits-form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                    <Clock size={13} /> Daily Target Duration
-                  </label>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-primary)' }}>{timeTarget} mins</span>
-                </div>
-                <input
-                  type="range" min="5" max="180" step="5"
-                  value={timeTarget} onChange={e => setTimeTarget(Number(e.target.value))}
-                  style={{ outline: 'none', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', cursor: 'pointer' }}
-                />
-              </div>
-
-              {/* Integrations (Calendar only) */}
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.85rem', marginTop: '0.2rem' }}>
-                <span className="habits-form-label" style={{ fontSize: '0.65rem', display: 'block', marginBottom: '0.45rem', color: 'var(--text-muted)' }}>INTEGRATIONS</span>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  <input
-                    type="checkbox"
-                    checked={syncToCalendar}
-                    onChange={e => setSyncToCalendar(e.target.checked)}
-                    style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary)' }}
-                  />
-                  <Calendar size={13} style={{ color: 'var(--color-secondary)' }} />
-                  <span>Reserve a slot in Google Calendar</span>
-                </label>
-              </div>
-            </div>
-
-            <div className="habits-modal-footer">
-              <button type="button" onClick={() => setShowAddModal(false)} className="btn-secondary" style={{ padding: '0.55rem 1.1rem', fontSize: '0.85rem' }}>
-                Cancel
-              </button>
-              <button type="submit" className="btn-primary" style={{ padding: '0.55rem 1.25rem', fontSize: '0.85rem', fontWeight: 700 }}>
-                Create Habit
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════
-          JOURNAL NOTE COMPLETION MODAL drawer
-      ══════════════════════════════════════════════ */}
-      {completingHabit && (
-        <div className="habits-overlay">
-          <div className="habits-modal" style={{ maxWidth: '380px' }}>
-            <div className="habits-modal-header" style={{ paddingBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(99,102,241,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <BookOpen size={16} style={{ color: 'var(--color-primary)' }} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800 }}>Quick Journal</h3>
-                  <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.72rem', color: 'var(--text-muted)' }}>Log for: {completingHabit.title}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="habits-modal-body" style={{ gap: '1rem' }}>
-              <textarea
-                className="habits-form-textarea"
-                rows={3}
-                placeholder="How did it go? Write down reflections, notes, or thoughts..."
-                value={completionNote}
-                onChange={e => setCompletionNote(e.target.value)}
-                style={{ resize: 'none', lineHeight: 1.45 }}
+          <div className="drawer-body custom-scroll">
+            {/* Habit Title */}
+            <div className="form-item">
+              <label>Habit Title</label>
+              <input
+                type="text"
+                placeholder="e.g. Read, Jog, Code, Hydrate"
+                value={formTitle}
+                onChange={e => setFormTitle(e.target.value)}
+                required
+                maxLength={45}
               />
             </div>
 
-            <div className="habits-modal-footer">
-              <button onClick={() => handleSaveCompletionNote(true)} className="btn-secondary" style={{ flex: 1, padding: '0.55rem', fontSize: '0.82rem' }}>
-                Skip Note
-              </button>
-              <button onClick={() => handleSaveCompletionNote(false)} className="btn-primary" style={{ flex: 1, padding: '0.55rem', fontSize: '0.82rem', fontWeight: 700 }}>
-                Complete
-              </button>
+            {/* Habit Description */}
+            <div className="form-item">
+              <label>Description / Motivation (Optional)</label>
+              <input
+                type="text"
+                placeholder="Brief encouragement or instructions"
+                value={formDesc}
+                onChange={e => setFormDesc(e.target.value)}
+                maxLength={90}
+              />
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* ══════════════════════════════════════════════
-          HABIT DETAIL / JOURNAL HISTORY MODAL
-      ══════════════════════════════════════════════ */}
-      {selectedHabit && (() => {
-        const preset     = getPresetFromClass(selectedHabit.color);
-        const logs       = habitLogs[selectedHabit.id] || {};
-        const streakData = calculateStreak(logs, selectedHabit.frequency, selectedHabit.daysOfWeek);
-        const diffMeta   = DIFFICULTY_META[selectedHabit.difficulty || 'medium'];
-        const entries = Object.keys(logs)
-          .filter(d => logs[d].status === 'completed')
-          .sort((a, b) => b.localeCompare(a));
-
-        // Format scheduled days string
-        let scheduleText = 'Every day';
-        if (selectedHabit.frequency === 'custom' && selectedHabit.daysOfWeek) {
-          scheduleText = selectedHabit.daysOfWeek.map(d => DAYS_SHORT[d]).join(', ');
-        }
-
-        return (
-          <div className="habits-overlay">
-            <div className="habits-modal" style={{ maxWidth: '420px' }}>
-              {/* Custom styled modal header with category gradient */}
-              <div style={{ background: preset.value, padding: '1.5rem 1.75rem', position: 'relative' }}>
-                <button
-                  onClick={() => setSelectedHabit(null)}
-                  style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'rgba(0,0,0,0.22)', border: 'none', borderRadius: '8px', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff', transition: 'background 0.2s ease' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.35)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.22)'}
-                >
-                  <X size={14} />
-                </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <span style={{ fontSize: '1.6rem' }}>{CATEGORY_META[selectedHabit.category || 'routine']?.icon || '🔄'}</span>
-                  <div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '280px' }}>
-                      {selectedHabit.title}
-                    </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.25rem' }}>
-                      <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.85)', fontWeight: 800, padding: '0.15rem 0.5rem', borderRadius: '99px', background: 'rgba(0,0,0,0.18)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        {diffMeta.label}
-                      </span>
-                      <span style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <CalendarDays size={10} />
-                        {scheduleText}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {selectedHabit.description && (
-                  <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)', margin: '0.85rem 0 0 0', lineHeight: 1.45 }}>{selectedHabit.description}</p>
-                )}
+            {/* Category & Difficulty */}
+            <div className="form-grid-2">
+              <div className="form-item">
+                <label>Category</label>
+                <select value={formCategory} onChange={e => setFormCategory(e.target.value)}>
+                  {Object.entries(CATEGORIES).map(([id, meta]) => (
+                    <option key={id} value={id}>
+                      {meta.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Modal Body */}
-              <div className="habits-modal-body custom-scroll" style={{ gap: '1.25rem' }}>
+              <div className="form-item">
+                <label>Difficulty</label>
+                <select value={formDifficulty} onChange={e => setFormDifficulty(e.target.value as any)}>
+                  <option value="easy">🟢 Easy</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="hard">🔴 Hard</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Color Accent Gradients Selector */}
+            <div className="form-item">
+              <label>Visual Accent Color Gradient</label>
+              <div className="color-presets-row">
+                {COLOR_PRESETS.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setFormColor(preset)}
+                    className={`preset-color-dot ${formColor.name === preset.name ? 'is-selected' : ''}`}
+                    style={{ background: preset.value }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+              <div className="preset-preview-line" style={{ background: formColor.value }} />
+            </div>
+
+            {/* Frequency selection */}
+            <div className="form-item">
+              <label>Repeat Routine Schedule</label>
+              <div className="toggle-segment-group">
+                <button
+                  type="button"
+                  onClick={() => setFormFrequency('daily')}
+                  className={`segment-btn ${formFrequency === 'daily' ? 'is-active' : ''}`}
+                >
+                  Everyday
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormFrequency('custom')}
+                  className={`segment-btn ${formFrequency === 'custom' ? 'is-active' : ''}`}
+                >
+                  Specific Days
+                </button>
+              </div>
+
+              {formFrequency === 'custom' && (
+                <div className="custom-days-selector">
+                  {DAYS_SHORT.map((dayChar, index) => {
+                    const isActive = formDaysOfWeek.includes(index);
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => handleFormDayToggle(index)}
+                        className={`day-selector-btn ${isActive ? 'is-active' : ''}`}
+                      >
+                        {dayChar[0]}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Daily target duration slider */}
+            <div className="form-item">
+              <div className="lbl-flex-row">
+                <label className="icon-lbl"><Clock size={13} /> Focus Target Duration</label>
+                <span className="slider-val-highlight">{formTimeTarget} minutes</span>
+              </div>
+              <input
+                type="range"
+                min="5"
+                max="180"
+                step="5"
+                value={formTimeTarget}
+                onChange={e => setFormTimeTarget(Number(e.target.value))}
+                className="range-input"
+              />
+            </div>
+
+            {/* Google Calendar Sync */}
+            <div className="form-item check-switch-row">
+              <div className="switch-info">
+                <label className="switch-lbl"><Calendar size={13} /> Sync to Google Calendar</label>
+                <p className="switch-desc">Block out target slot automatically on primary calendar</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={formSyncCalendar}
+                onChange={e => setFormSyncCalendar(e.target.checked)}
+                className="switch-checkbox"
+              />
+            </div>
+          </div>
+
+          <div className="drawer-footer">
+            <button type="button" className="btn-drawer-cancel" onClick={() => setIsAddEditOpen(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-drawer-submit">
+              {editingHabit ? 'Update Habit' : 'Create Habit'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ── SLIDE-OVER DRAWER: HABIT DETAILS & HISTORY ────── */}
+      <div className={`drawer-overlay ${isDetailsOpen ? 'is-active' : ''}`} onClick={() => setIsDetailsOpen(false)}>
+        {inspectingHabit && (() => {
+          const logs = habitLogs[inspectingHabit.id] || {};
+          const streakData = calculateStreak(logs, inspectingHabit.frequency, inspectingHabit.daysOfWeek);
+          const difficultyMeta = DIFFICULTY_META[inspectingHabit.difficulty || 'medium'];
+          const categoryMeta = CATEGORIES[inspectingHabit.category || 'routine'] || CATEGORIES.other;
+          const presetColor = COLOR_PRESETS.find(p => p.class === inspectingHabit.color) || COLOR_PRESETS[0];
+
+          // Heatmap calculations
+          const heatmapNodes = [];
+          const heatmapDaysCount = 30;
+          for (let i = heatmapDaysCount - 1; i >= 0; i--) {
+            const dateObj = new Date();
+            dateObj.setDate(dateObj.getDate() - i);
+            const dateStr = getLocalDateStr(dateObj);
+            const isCompleted = logs[dateStr]?.status === 'completed';
+            const isScheduled = isHabitScheduledForDate(inspectingHabit, dateObj);
+            
+            let nodeStatus: 'completed' | 'missed' | 'rest' = 'rest';
+            if (isCompleted) {
+              nodeStatus = 'completed';
+            } else if (isScheduled) {
+              nodeStatus = 'missed';
+            }
+            
+            heatmapNodes.push({
+              date: dateObj,
+              dateStr,
+              status: nodeStatus
+            });
+          }
+
+          // Reflections list
+          const completedEntries = Object.keys(logs)
+            .filter(d => logs[d].status === 'completed')
+            .sort((a, b) => b.localeCompare(a)); // Sort newest first
+
+          let scheduleDesc = 'Every day';
+          if (inspectingHabit.frequency === 'custom' && inspectingHabit.daysOfWeek) {
+            scheduleDesc = inspectingHabit.daysOfWeek.map(d => DAYS_SHORT[d]).join(', ');
+          }
+
+          return (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={`drawer-container detail-drawer-width ${isDetailsOpen ? 'is-active' : ''}`}
+            >
+              {/* Styled Gradient Header */}
+              <div className="details-header-card" style={{ background: presetColor.value }}>
+                <button className="btn-details-close" onClick={() => setIsDetailsOpen(false)}>
+                  <X size={15} />
+                </button>
                 
-                {/* Streak stats grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                  {[
-                    { icon: <Flame size={16} style={{ color: '#f97316' }} />, value: streakData.currentStreak, label: 'Current Streak', color: '#f97316' },
-                    { icon: <Award size={16} style={{ color: '#a855f7' }} />, value: streakData.longestStreak, label: 'Best Streak',    color: '#a855f7' },
-                    { icon: <BarChart2 size={16} style={{ color: '#06b6d4' }} />, value: entries.length, label: 'Completions',  color: '#06b6d4' },
-                  ].map(({ icon, value, label, color }) => (
-                    <div key={label} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.75rem 0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
-                      {icon}
-                      <span style={{ fontSize: '1.35rem', fontWeight: 800, color, lineHeight: 1 }}>{value}</span>
-                      <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', fontWeight: 600, textAlign: 'center' }}>{label}</span>
-                    </div>
-                  ))}
+                <div className="header-meta-row">
+                  <span className="cat-icon-badge">{categoryMeta.icon}</span>
+                  <div>
+                    <span
+                      className="lbl-badge-diff"
+                      style={{
+                        color: difficultyMeta.color,
+                        background: 'rgba(0, 0, 0, 0.22)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)'
+                      }}
+                    >
+                      {difficultyMeta.label}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Journal Logs list */}
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.55rem' }}>
-                    <BookOpen size={13} style={{ color: 'var(--text-secondary)' }} />
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em' }}>JOURNAL HISTORY LOGS</span>
+                <h2>{inspectingHabit.title}</h2>
+                {inspectingHabit.description && <p className="details-desc">{inspectingHabit.description}</p>}
+                
+                <div className="details-sub-meta">
+                  <span className="meta-text-item">
+                    <CalendarDays size={12} />
+                    Repeat: {scheduleDesc}
+                  </span>
+                  {inspectingHabit.timeTargetMinutes && (
+                    <span className="meta-text-item">
+                      <Clock size={12} />
+                      Target: {inspectingHabit.timeTargetMinutes}m/day
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Drawer Body content */}
+              <div className="drawer-body custom-scroll">
+                
+                {/* Stats summary row */}
+                <div className="details-stats-row">
+                  <div className="stat-node">
+                    <Flame size={18} style={{ color: '#f97316' }} fill="rgba(249, 115, 22, 0.1)" />
+                    <span className="stat-val text-streak">{streakData.currentStreak}d</span>
+                    <span className="stat-lbl">Current Streak</span>
+                  </div>
+                  <div className="stat-node">
+                    <Award size={18} style={{ color: '#a855f7' }} />
+                    <span className="stat-val text-purple">{streakData.longestStreak}d</span>
+                    <span className="stat-lbl">Best Streak</span>
+                  </div>
+                  <div className="stat-node">
+                    <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+                    <span className="stat-val text-success">{completedEntries.length}</span>
+                    <span className="stat-lbl">Completions</span>
+                  </div>
+                </div>
+
+                {/* 30-Day Specific Heatmap */}
+                <div className="details-section">
+                  <div className="section-title">
+                    <CalendarDays size={13} />
+                    <span>30-Day Consistency Grid</span>
+                  </div>
+                  
+                  <div className="heatmap-block">
+                    <div className="heatmap-labels-row">
+                      <span className="lbl-tiny">30 days ago</span>
+                      <div className="heatmap-legend">
+                        <span className="legend-item"><span className="dot col-done" /> Done</span>
+                        <span className="legend-item"><span className="dot col-missed" /> Missed</span>
+                        <span className="legend-item"><span className="dot col-rest" /> Rest</span>
+                      </div>
+                      <span className="lbl-tiny">Today</span>
+                    </div>
+
+                    <div className="heatmap-grid-container">
+                      {heatmapNodes.map((node, nodeIdx) => {
+                        const formattedDate = node.date.toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        });
+
+                        return (
+                          <div
+                            key={nodeIdx}
+                            className={`heatmap-node-cell state-${node.status}`}
+                            style={{
+                              '--node-accent-color': node.status === 'completed' ? presetColor.solid : 'transparent'
+                            } as any}
+                            title={`${formattedDate} — ${node.status.toUpperCase()}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reflection Notes History logs */}
+                <div className="details-section">
+                  <div className="section-title">
+                    <BookOpen size={13} />
+                    <span>Journal Reflections History</span>
                   </div>
 
-                  {entries.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '1.75rem 1rem', background: 'rgba(0,0,0,0.15)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-color)' }}>
-                      <Info size={16} style={{ color: 'var(--text-muted)', marginBottom: '0.4rem' }} />
-                      <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>No entries logged yet. Complete the habit to write a quick reflection.</p>
+                  {completedEntries.length === 0 ? (
+                    <div className="details-empty-logs">
+                      <Info size={16} />
+                      <p>No completion journals logged. Complete this habit to capture notes and mood patterns.</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '180px', overflowY: 'auto' }} className="custom-scroll">
-                      {entries.map(dateStr => {
-                        const log = logs[dateStr];
+                    <div className="details-logs-stack">
+                      {completedEntries.map(dateKey => {
+                        const logObj = logs[dateKey];
+                        const parsed = parseLogNote(logObj.note);
+                        const moodObj = parsed.mood ? MOOD_META[parsed.mood] : null;
+
                         return (
-                          <div key={dateStr} style={{
-                            background: 'rgba(0,0,0,0.15)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-sm)',
-                            padding: '0.65rem 0.8rem',
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: preset.solid }}>{dateStr}</span>
-                              {log.completedAt && (
-                                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
-                                  {new Date(log.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                              )}
+                          <div key={dateKey} className="log-history-card">
+                            <div className="log-card-header">
+                              <span className="log-date">{dateKey}</span>
+                              <div className="log-header-right">
+                                {moodObj && (
+                                  <span className="log-mood-badge" style={{ color: moodObj.color, background: `${moodObj.color}15` }}>
+                                    {moodObj.emoji} {moodObj.label}
+                                  </span>
+                                )}
+                                {logObj.completedAt && (
+                                  <span className="log-time">
+                                    {new Date(logObj.completedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            {log.note ? (
-                              <p style={{ fontSize: '0.75rem', color: 'var(--text-primary)', fontStyle: 'italic', lineHeight: 1.4, margin: 0 }}>"{log.note}"</p>
+                            {parsed.text ? (
+                              <p className="log-reflection-txt">"{parsed.text}"</p>
                             ) : (
-                              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>Checked off — no notes written.</p>
+                              <p className="log-reflection-txt empty">Checked off without notes.</p>
                             )}
                           </div>
                         );
@@ -826,50 +1114,193 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                   )}
                 </div>
 
-                {/* Footer Section */}
-                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                    {selectedHabit.timeTargetMinutes && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Clock size={11} /> Target: {selectedHabit.timeTargetMinutes} min/day
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (confirm(`Delete "${selectedHabit.title}"? This action is irreversible.`)) {
-                        await onDeleteHabit(selectedHabit);
-                        setSelectedHabit(null);
-                      }
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '0.35rem',
-                      background: 'rgba(239,68,68,0.06)',
-                      border: '1px solid rgba(239,68,68,0.18)',
-                      color: '#ef4444',
-                      padding: '0.45rem 0.85rem',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.78rem', fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)';
-                      e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.06)';
-                      e.currentTarget.style.borderColor = 'rgba(239,68,68,0.18)';
-                    }}
-                  >
-                    <Trash2 size={12} /> Delete Habit
-                  </button>
-                </div>
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="drawer-footer flex-footer">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDetailsOpen(false);
+                    openEditDrawer(inspectingHabit);
+                  }}
+                  className="btn-details-edit"
+                >
+                  <Edit3 size={13} /> Edit Details
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (confirm(`Delete habit "${inspectingHabit.title}"? This is permanent.`)) {
+                      await onDeleteHabit(inspectingHabit);
+                      setIsDetailsOpen(false);
+                      setInspectingHabit(null);
+                    }
+                  }}
+                  className="btn-details-delete"
+                >
+                  <Trash2 size={13} /> Delete Habit
+                </button>
               </div>
             </div>
+          );
+        })()}
+      </div>
+
+      {/* ── QUICK JOURNAL NOTE / MOOD SELECTION MODAL ────── */}
+      {completingHabit && (
+        <div className="hb-modal-overlay">
+          <div className="hb-modal-dialog">
+            <div className="hb-modal-header">
+              <div className="modal-header-title">
+                <BookOpen size={16} />
+                <div>
+                  <h3>Quick Journal Log</h3>
+                  <p>Log execution for: {completingHabit.title}</p>
+                </div>
+              </div>
+              <button className="btn-modal-close" onClick={() => setCompletingHabit(null)}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="hb-modal-body">
+              {/* Mood picker grid */}
+              <div className="form-item">
+                <label>How do you feel about this session?</label>
+                <div className="mood-picker-grid">
+                  {Object.entries(MOOD_META).map(([id, meta]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setSelectedMood(id)}
+                      className={`mood-picker-btn ${selectedMood === id ? 'is-selected' : ''}`}
+                      style={{ '--mood-hover-color': meta.color } as any}
+                    >
+                      <span className="mood-emoji">{meta.emoji}</span>
+                      <span className="mood-lbl">{meta.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reflection note input */}
+              <div className="form-item">
+                <label>Reflection Notes</label>
+                <textarea
+                  rows={3}
+                  placeholder="Record thoughts, achievements, or any struggles during this habit slot..."
+                  value={journalNote}
+                  onChange={e => setJournalNote(e.target.value)}
+                  maxLength={160}
+                />
+              </div>
+            </div>
+
+            <div className="hb-modal-footer">
+              <button onClick={() => handleSaveJournalLog(true)} className="btn-modal-skip">
+                Skip & Complete
+              </button>
+              <button onClick={() => handleSaveJournalLog(false)} className="btn-modal-save">
+                Save Reflections
+              </button>
+            </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
+
+      {/* ── FLOATING FOCUS TIMER OVERLAY WIDGET ────────────── */}
+      {activeTimer && (
+        <div className="hb-floating-timer">
+          <div className="timer-header">
+            <div className="timer-title-info">
+              <span className="timer-pulse-indicator" />
+              <h5>Focusing: {activeTimer.habitTitle}</h5>
+            </div>
+            <button onClick={() => setActiveTimer(null)} className="btn-timer-close" title="Close and discard timer">
+              <X size={13} />
+            </button>
+          </div>
+
+          <div className="timer-body">
+            <div className="timer-circle-section">
+              <ProgressRing
+                radius={28}
+                stroke={3.5}
+                progress={Math.round((activeTimer.secondsRemaining / activeTimer.totalSeconds) * 100)}
+                color1="#a855f7"
+                color2="#ec4899"
+                gradientId="floating-timer-ring"
+              />
+              <div className="timer-numeric">
+                {String(Math.floor(activeTimer.secondsRemaining / 60)).padStart(2, '0')}:
+                {String(activeTimer.secondsRemaining % 60).padStart(2, '0')}
+              </div>
+            </div>
+
+            <div className="timer-controls">
+              {/* Play / Pause */}
+              <button
+                onClick={() => setActiveTimer(prev => prev ? { ...prev, isPlaying: !prev.isPlaying } : null)}
+                className={`timer-ctrl-btn play-btn ${activeTimer.isPlaying ? 'paused' : ''}`}
+                title={activeTimer.isPlaying ? 'Pause focus timer' : 'Resume focus timer'}
+              >
+                {activeTimer.isPlaying ? <Pause size={12} fill="#ffffff" /> : <Play size={12} fill="#ffffff" />}
+              </button>
+
+              {/* Reset */}
+              <button
+                onClick={() => setActiveTimer(prev => prev ? { ...prev, secondsRemaining: prev.totalSeconds, isPlaying: false } : null)}
+                className="timer-ctrl-btn reset-btn"
+                title="Reset timer"
+              >
+                <RotateCcw size={12} />
+              </button>
+
+              {/* Complete Now */}
+              <button
+                onClick={() => {
+                  const habit = habits.find(h => h.id === activeTimer.habitId);
+                  if (habit) {
+                    setCompletingHabit(habit);
+                    setSelectedMood('awesome');
+                    setJournalNote(`Completed early focus session. Spent ${Math.round((activeTimer.totalSeconds - activeTimer.secondsRemaining) / 60)} minutes.`);
+                  }
+                  setActiveTimer(null);
+                }}
+                className="timer-complete-btn"
+                title="Complete focus session and log reflections"
+              >
+                <Check size={12} strokeWidth={3} />
+                <span>Finish</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+
+// Simple Fallback icon component for Calendar range UI
+const CalendarRangeIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    viewBox="0 0 24 24"
+    width="14"
+    height="14"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    fill="none"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+    <line x1="16" x2="16" y1="2" y2="6" />
+    <line x1="8" x2="8" y1="2" y2="6" />
+    <line x1="3" x2="21" y1="10" y2="10" />
+    <path d="M17 14h-6" />
+    <path d="M13 18H7" />
+  </svg>
+);
