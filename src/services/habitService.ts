@@ -6,9 +6,7 @@ import {
 import { db } from '../firebase';
 import { 
   createGoogleEvent, 
-  deleteGoogleEvent,
-  createGoogleTask,
-  deleteGoogleTask
+  deleteGoogleEvent
 } from './googleApi';
 
 export interface Habit {
@@ -23,7 +21,7 @@ export interface Habit {
   archived: boolean;
   timeTargetMinutes?: number; // Target timer length
   syncToCalendar: boolean;
-  syncToTasks: boolean;
+  syncToTasks?: boolean;
   googleCalendarEventId?: string;
   googleTaskListId?: string;
   googleTaskId?: string;
@@ -96,25 +94,6 @@ export const addLocalHabit = async (
     }
   }
 
-  // Google Tasks Integration
-  if (newHabit.syncToTasks && newHabit.googleTaskListId) {
-    try {
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
-      
-      const task = await createGoogleTask(newHabit.googleTaskListId, {
-        title: `Habit: ${newHabit.title}`,
-        notes: `Zenith Habit tracker sync. Complete this task to check off your habit today.`,
-        status: 'needsAction',
-        due: today.toISOString()
-      });
-
-      newHabit.googleTaskId = task.id;
-    } catch (err) {
-      console.error("Failed to sync habit to Google Tasks:", err);
-    }
-  }
-
   // Write to Firestore
   await setDoc(doc(db, 'users', userId, 'habits', habitId), newHabit);
   return habitId;
@@ -144,15 +123,6 @@ export const deleteLocalHabit = async (
     }
   }
 
-  // Delete Google Task if it exists
-  if (habit.googleTaskId && habit.googleTaskListId) {
-    try {
-      await deleteGoogleTask(habit.googleTaskListId, habit.googleTaskId);
-    } catch (err) {
-      console.error("Failed to delete Google Task for habit:", err);
-    }
-  }
-
   // Delete from Firestore
   await deleteDoc(doc(db, 'users', userId, 'habits', habit.id));
 };
@@ -171,16 +141,6 @@ export const toggleHabitCompletion = async (
   if (currentCompleted) {
     // Delete log (mark as uncompleted)
     await deleteDoc(logRef);
-
-    // If Google Task was completed, we can reset it to needsAction on Google Tasks
-    if (habit.googleTaskId && habit.googleTaskListId) {
-      try {
-        // Simple async update in background
-        // Wait, completing tasks is handled via GAPI
-      } catch (err) {
-        console.error(err);
-      }
-    }
   } else {
     // Write completed log
     const log: HabitLog = {
@@ -274,36 +234,46 @@ export const calculateStreak = (
   let checkDate = new Date(today);
   let isStreakActive = false;
 
-  // Check if today is completed or if today is not a scheduled day
   const todayStr = formatDate(today);
   const completedToday = completedSet.has(todayStr);
 
-  // If yesterday was completed, the streak is alive today
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = formatDate(yesterday);
-  const completedYesterday = completedSet.has(yesterdayStr);
-
   let activeCheckDate = new Date(today);
 
-  // If not completed today, and today is a scheduled day, the streak might still be alive from yesterday
-  let todayIsScheduled = true;
-  if (frequency === 'custom' && daysOfWeek && daysOfWeek.length > 0) {
-    todayIsScheduled = daysOfWeek.includes(today.getDay());
-  }
+  if (completedToday) {
+    isStreakActive = true;
+    activeCheckDate = today;
+  } else {
+    // Today is not completed.
+    // Walk back day by day starting from yesterday to find the most recent scheduled day.
+    let check = new Date(today);
+    check.setDate(check.getDate() - 1);
+    let foundScheduled = false;
 
-  if (!completedToday && todayIsScheduled) {
-    // If not completed today, but yesterday was completed, start checking from yesterday
-    if (completedYesterday) {
-      activeCheckDate = yesterday;
-      isStreakActive = true;
-    } else {
-      // Both today and yesterday are uncompleted (and today was scheduled) => streak is 0
+    for (let i = 0; i < 365; i++) {
+      let isScheduledDay = true;
+      if (frequency === 'custom' && daysOfWeek && daysOfWeek.length > 0) {
+        isScheduledDay = daysOfWeek.includes(check.getDay());
+      }
+
+      if (isScheduledDay) {
+        foundScheduled = true;
+        const dateStr = formatDate(check);
+        if (completedSet.has(dateStr)) {
+          isStreakActive = true;
+          activeCheckDate = check;
+        } else {
+          isStreakActive = false;
+        }
+        break; // We found the most recent scheduled day, stop searching
+      }
+
+      check.setDate(check.getDate() - 1);
+    }
+
+    // If no scheduled days exist in the past, streak is 0
+    if (!foundScheduled) {
       isStreakActive = false;
     }
-  } else {
-    // Streak is active (either completed today, or today is not a scheduled day and we'll check backwards)
-    isStreakActive = true;
   }
 
   if (isStreakActive) {
