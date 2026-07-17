@@ -1767,6 +1767,19 @@ html[data-theme="light"] .hb-card-item.is-completed {
   background: rgba(255, 255, 255, 0.16);
 }
 
+/* ── REST DAY CARDS STYLING ───────────────────────────── */
+.hb-card-item.is-rest-day {
+  opacity: 0.7;
+  filter: saturate(0.85);
+  border-color: transparent;
+}
+
+.hb-card-item.is-rest-day:hover {
+  opacity: 1;
+  filter: saturate(1);
+  border-color: var(--border-hover);
+}
+
 /* ── OVERALL CONSISTENCY HEATMAP CARD ─────────────────── */
 .hb-overall-heatmap-card {
   background: var(--bg-surface);

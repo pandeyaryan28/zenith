@@ -333,8 +333,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     // Category tab filter
     if (activeCategory !== 'all' && h.category !== activeCategory) return false;
 
-    // Must be scheduled for the selected calendar day
-    return isHabitScheduledForDate(h, selectedDate);
+    return true;
   }).sort((a, b) => {
     if (sortBy === 'name') {
       return a.title.localeCompare(b.title);
@@ -802,11 +801,13 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                 ? Math.round((completedTasksCount / totalTasksCount) * 100)
                 : 0;
 
+              const isScheduled = isHabitScheduledForDate(habit, selectedDate);
+
               return (
                 <div
                   key={habit.id}
                   onClick={() => openInspectingDrawer(habit)}
-                  className={`hb-card-item ${isCompleted ? 'is-completed' : ''}`}
+                  className={`hb-card-item ${isCompleted ? 'is-completed' : ''} ${!isScheduled ? 'is-rest-day' : ''}`}
                   style={{
                     '--card-glow-color': presetColor.glow,
                     '--card-theme-color': presetColor.solid
@@ -924,6 +925,13 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                       >
                         {difficultyMeta.label}
                       </span>
+
+                      {/* Rest Day indicator */}
+                      {!isScheduled && (
+                        <span className="lbl-badge rest-day" style={{ background: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-muted)', borderColor: 'var(--border-color)' }}>
+                          Rest Day
+                        </span>
+                      )}
 
                       {/* Timer Target Trigger */}
                       {habit.timeTargetMinutes && (
