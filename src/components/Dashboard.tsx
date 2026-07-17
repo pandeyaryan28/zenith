@@ -784,6 +784,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               <Route path="/analytics" element={
                 <AnalyticsPage
                   tasks={tasks}
+                  taskLists={taskLists}
                   habits={habits}
                   habitLogs={habitLogs}
                   pomodoroSessions={pomodoroSessions}
