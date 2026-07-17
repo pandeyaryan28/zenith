@@ -266,6 +266,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   // ----------------------------------------------------
   const activeTasks = tasks.filter(t => t.listId === activeListId && t.status === 'needsAction' && !t.localDeleted);
   const activeTasksCount = activeTasks.length;
+
+  const getTaskPriority = (notes: string = ''): 'high' | 'medium' | 'low' | 'none' => {
+    if (notes.includes('[priority: high]') || notes.includes('#p1')) return 'high';
+    if (notes.includes('[priority: medium]') || notes.includes('#p2')) return 'medium';
+    if (notes.includes('[priority: low]') || notes.includes('#p3')) return 'low';
+    return 'none';
+  };
+  const starredTasks = activeTasks.filter(t => getTaskPriority(t.notes) === 'high');
   const completedTasksTodayCount = tasks.filter(t => t.listId === activeListId && t.status === 'completed' && !t.localDeleted).length;
 
   const activeHabitsToday = habits.filter(h => {
@@ -881,14 +889,14 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             }} 
             className="custom-scroll"
           >
-            {activeTasks.length === 0 ? (
+            {starredTasks.length === 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', flex: 1, padding: '2rem', textAlign: 'center', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)' }}>
                 <CheckCircle size={22} style={{ color: 'var(--color-success)', marginBottom: '0.5rem' }} />
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>All clean! No pending tasks.</span>
-                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2,rem' }}>Add a new task using the quick bar below.</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>All clean! No starred tasks.</span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>Star a task in the Task Board to see it here.</span>
               </div>
             ) : (
-              activeTasks.slice(0, 5).map(task => {
+              starredTasks.slice(0, 5).map(task => {
                 const isChecking = !!localCheckingTasks[task.id];
                 return (
                   <div 
