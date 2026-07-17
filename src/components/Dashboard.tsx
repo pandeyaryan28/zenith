@@ -21,7 +21,9 @@ import {
   ListTodo,
   Notebook,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { HabitsBoard } from './HabitsBoard';
 import type { Habit, HabitLog } from '../services/habitService';
@@ -490,6 +492,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {/* User Details & Sign Out */}
           {isSidebarCollapsed ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+              <button
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                className="hover-scale"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: 'var(--bg-card-nested)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  marginBottom: '0.1rem'
+                }}
+                title={theme === 'light' ? "Switch to Dark Mode" : "Switch to Light Mode"}
+              >
+                {theme === 'light' ? <Sun size={13} style={{ color: 'var(--color-warning)' }} /> : <Moon size={13} style={{ color: 'var(--color-primary)' }} />}
+              </button>
+              
               {user.photoURL ? (
                 <img 
                   src={user.photoURL} 
@@ -513,6 +537,41 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+              {/* Theme Toggle row */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                padding: '0.4rem 0.6rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-card-nested)',
+                border: '1px solid var(--border-color)'
+              }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Theme Mode</span>
+                <button
+                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                  className="hover-scale"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.35rem',
+                    padding: '0.3rem 0.55rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--color-primary-glow)',
+                    border: '1px solid var(--border-active)',
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    transition: 'all var(--transition-fast)'
+                  }}
+                >
+                  {theme === 'light' ? <Sun size={12} style={{ color: 'var(--color-warning)' }} /> : <Moon size={12} style={{ color: 'var(--color-primary)' }} />}
+                  <span>{theme === 'light' ? 'Light' : 'Dark'}</span>
+                </button>
+              </div>
+
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 {user.photoURL ? (
                   <img 
@@ -535,15 +594,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
               </div>
 
-            <button 
-              onClick={onSignOut}
-              className="btn-secondary" 
-              style={{ width: '100%', justifyContent: 'center', padding: '0.5rem', borderRadius: 'var(--radius-sm)', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}
-            >
-              <LogOut size={14} />
-              <span>Sign Out</span>
-            </button>
-          </div>
+              <button 
+                onClick={onSignOut}
+                className="btn-secondary" 
+                style={{ width: '100%', justifyContent: 'center', padding: '0.5rem', borderRadius: 'var(--radius-sm)', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}
+              >
+                <LogOut size={14} />
+                <span>Sign Out</span>
+              </button>
+            </div>
           )}
         </aside>
 
