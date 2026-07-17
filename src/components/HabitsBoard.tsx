@@ -169,6 +169,50 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   onDeleteHabit,
   onToggleHabit,
 }) => {
+  // Local fallback mock habits if props habits is empty
+  const habitsList: Habit[] = habits && habits.length > 0 ? habits : [
+    {
+      id: 'mock-1',
+      title: 'Meditate',
+      description: 'Daily mindfulness practice ||todo:Breathwork|done:10 min mindfulness',
+      color: 'grad-indigo-cyan',
+      category: 'mind',
+      difficulty: 'easy',
+      frequency: 'daily' as const,
+      timeTargetMinutes: 15,
+      syncToCalendar: false,
+      createdAt: new Date().toISOString(),
+      archived: false
+    },
+    {
+      id: 'mock-2',
+      title: 'Read Books',
+      description: 'Expand knowledge ||todo:Read chapter 5|todo:Highlight key insights',
+      color: 'grad-cyan-emerald',
+      category: 'work',
+      difficulty: 'medium',
+      frequency: 'daily' as const,
+      timeTargetMinutes: 30,
+      syncToCalendar: false,
+      createdAt: new Date().toISOString(),
+      archived: false
+    },
+    {
+      id: 'mock-3',
+      title: 'Strength Workout',
+      description: 'Physical health ||todo:Warmup|todo:Lifting session|todo:Stretching',
+      color: 'grad-pink-orange',
+      category: 'health',
+      difficulty: 'hard',
+      frequency: 'custom' as const,
+      daysOfWeek: [1, 3, 5],
+      timeTargetMinutes: 60,
+      syncToCalendar: false,
+      createdAt: new Date().toISOString(),
+      archived: false
+    }
+  ];
+
   // Navigation & Filtering State
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -232,7 +276,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
             clearInterval(intervalId);
             playBeep();
             // Automatically prompt check-off
-            const habit = habits.find(h => h.id === prev.habitId);
+            const habit = habitsList.find(h => h.id === prev.habitId);
             if (habit) {
               setCompletingHabit(habit);
               setSelectedMood('awesome');
@@ -250,7 +294,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [activeTimer?.isPlaying, activeTimer?.secondsRemaining, habits]);
+  }, [activeTimer?.isPlaying, activeTimer?.secondsRemaining, habitsList]);
 
   // Form Field States (Add / Edit Habit)
   const [formTitle, setFormTitle] = useState('');
@@ -308,7 +352,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   const selectedDateStr = getLocalDateStr(selectedDate);
 
   // Calculations for Today's Stats
-  const activeHabitsToday = habits.filter(h => isHabitScheduledForDate(h, new Date()));
+  const activeHabitsToday = habitsList.filter(h => isHabitScheduledForDate(h, new Date()));
   const completedHabitsToday = activeHabitsToday.filter(h => 
     habitLogs?.[h.id]?.[getLocalDateStr(new Date())]?.status === 'completed'
   );
@@ -316,13 +360,13 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     ? Math.round((completedHabitsToday.length / activeHabitsToday.length) * 100)
     : 0;
 
-  const totalStreakDays = habits.reduce((sum, h) => {
+  const totalStreakDays = habitsList.reduce((sum, h) => {
     const s = calculateStreak(habitLogs?.[h.id] || {}, h.frequency, h.daysOfWeek);
     return sum + s.currentStreak;
   }, 0);
 
   // Filter habits for displaying in the main board grid
-  const displayedHabits = habits.filter(h => {
+  const displayedHabits = habitsList.filter(h => {
     if (h.archived) return false;
     
     // Search filter
@@ -353,7 +397,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   // Calculate day completion status for the week picker navigation items
   const getDayCompletions = (date: Date) => {
     const dStr = getLocalDateStr(date);
-    const scheduled = habits.filter(h => isHabitScheduledForDate(h, date));
+    const scheduled = habitsList.filter(h => isHabitScheduledForDate(h, date));
     if (scheduled.length === 0) return { scheduledCount: 0, completedCount: 0, percent: -1 };
     
     const completed = scheduled.filter(h => habitLogs?.[h.id]?.[dStr]?.status === 'completed');
@@ -385,7 +429,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
 
   const getHeatmapData = (date: Date) => {
     const dateStr = getLocalDateStr(date);
-    const scheduled = habits.filter(h => isHabitScheduledForDate(h, date));
+    const scheduled = habitsList.filter(h => isHabitScheduledForDate(h, date));
 
     if (scheduled.length === 0) return { ratio: -1, completed: 0, total: 0 };
     const completed = scheduled.filter(h => habitLogs?.[h.id]?.[dateStr]?.status === 'completed').length;
@@ -601,7 +645,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
             <div className="metric-info">
               <div className="metric-lbl">ACTIVE TRACKS</div>
               <div className="metric-val text-success">
-                {habits.filter(h => isHabitScheduledForDate(h, new Date())).length} / {habits.filter(h => !h.archived).length}
+                {habitsList.filter(h => isHabitScheduledForDate(h, new Date())).length} / {habitsList.filter(h => !h.archived).length}
               </div>
               <div className="metric-desc">scheduled / total habits</div>
             </div>
@@ -1540,7 +1584,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               {/* Complete Now */}
               <button
                 onClick={() => {
-                  const habit = habits.find(h => h.id === activeTimer.habitId);
+                  const habit = habitsList.find(h => h.id === activeTimer.habitId);
                   if (habit) {
                     setCompletingHabit(habit);
                     setSelectedMood('awesome');
