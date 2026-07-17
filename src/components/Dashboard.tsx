@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation, Routes, Route, Navigate } from 'react-router-dom';
 import type { User } from 'firebase/auth';
 import type { LocalTask, LocalEvent } from '../services/syncService';
 import type { GoogleTaskList, GoogleTask, GoogleEvent } from '../services/googleApi';
@@ -145,7 +146,20 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onUpdateNote,
   onDeleteNote
 }) => {
-  const [activePage, setActivePage] = useState<'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'notes' | 'settings'>('dashboard');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const getActivePage = (): 'dashboard' | 'calendar' | 'tasks' | 'habits' | 'pomodoro' | 'analytics' | 'notes' | 'settings' => {
+    const path = location.pathname;
+    if (path === '/' || path === '/dashboard') return 'dashboard';
+    const segment = path.split('/').filter(Boolean)[0];
+    if (['calendar', 'tasks', 'habits', 'pomodoro', 'analytics', 'notes', 'settings'].includes(segment)) {
+      return segment as any;
+    }
+    return 'dashboard';
+  };
+  const activePage = getActivePage();
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('zenith-sidebar-collapsed') === 'true';
   });
@@ -308,7 +322,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setActivePage(item.id)}
+                    onClick={() => navigate(item.id === 'dashboard' ? '/' : `/${item.id}`)}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -363,7 +377,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {/* Live Pomodoro Sidebar Widget */}
             {isSidebarCollapsed ? (
               <div 
-                onClick={() => setActivePage('pomodoro')}
+                onClick={() => navigate('/pomodoro')}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -399,7 +413,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
               </div>
             ) : (
               <div 
-                onClick={() => setActivePage('pomodoro')}
+                onClick={() => navigate('/pomodoro')}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -658,123 +672,134 @@ export const Dashboard: React.FC<DashboardProps> = ({
           )}
 
           <div style={{ flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
-            {activePage === 'calendar' ? (
-              <CalendarView
-                events={events}
-                onAddEvent={onAddEvent}
-                onUpdateEvent={onUpdateEvent}
-                onDeleteEvent={onDeleteEvent}
-              />
-            ) : activePage === 'tasks' ? (
-              <TaskBoard
-                tasks={tasks}
-                taskLists={taskLists}
-                activeListId={activeListId}
-                setActiveListId={setActiveListId}
-                onAddTask={onAddTask}
-                onToggleTask={onToggleTask}
-                onUpdateTask={onUpdateTask}
-                onDeleteTask={onDeleteTask}
-                loading={loadingData}
-              />
-            ) : activePage === 'dashboard' ? (
-              <DashboardOverview
-                user={user}
-                tasks={tasks}
-                events={events}
-                habits={habits}
-                habitLogs={habitLogs}
-                pomodoroSessions={pomodoroSessions}
-                activeListId={activeListId}
-                onToggleHabit={onToggleHabit}
-                onNavigate={setActivePage}
-                pomoType={pomoType}
-                pomoState={pomoState}
-                pomoTotalDuration={pomoTotalDuration}
-                pomoTimeLeft={pomoTimeLeft}
-                pomoSelectedTaskIds={pomoSelectedTaskIds}
-                setPomoSelectedTaskIds={setPomoSelectedTaskIds}
-                startPausePomo={startPausePomo}
-                resetPomo={resetPomo}
-                onAddTask={onAddTask}
-                onToggleTask={onToggleTask}
-                onAddEvent={onAddEvent}
-                notes={notes}
-                onAddNote={onAddNote}
-                onUpdateNote={onUpdateNote}
-                onDeleteNote={onDeleteNote}
-                activeSoundId={activeSoundId}
-                toggleAmbientSound={toggleAmbientSound}
-                skipPomo={skipPomo}
-                adjustPomoDuration={adjustPomoDuration}
-                handlePresetSelect={handlePresetSelect}
-                handleSavePartialSession={handleSavePartialSession}
-                handleDiscardPartialSession={handleDiscardPartialSession}
-              />
-            ) : activePage === 'habits' ? (
-              <HabitsBoard
-                habits={habits}
-                habitLogs={habitLogs}
-                taskLists={taskLists}
-                onAddHabit={onAddHabit}
-                onUpdateHabit={onUpdateHabit}
-                onDeleteHabit={onDeleteHabit}
-                onToggleHabit={onToggleHabit}
-              />
-            ) : activePage === 'pomodoro' ? (
-              <PomodoroBoard
-                tasks={tasks}
-                activeListId={activeListId}
-                pomodoroSessions={pomodoroSessions}
-                userId={user.uid}
-                onToggleTask={onToggleTask}
-                pomoType={pomoType}
-                pomoState={pomoState}
-                pomoTotalDuration={pomoTotalDuration}
-                pomoTimeLeft={pomoTimeLeft}
-                pomoSelectedTaskIds={pomoSelectedTaskIds}
-                setPomoSelectedTaskIds={setPomoSelectedTaskIds}
-                activeSoundId={activeSoundId}
-                startPausePomo={startPausePomo}
-                resetPomo={resetPomo}
-                skipPomo={skipPomo}
-                adjustPomoDuration={adjustPomoDuration}
-                toggleAmbientSound={toggleAmbientSound}
-                handlePresetSelect={handlePresetSelect}
-                handleSavePartialSession={handleSavePartialSession}
-                handleDiscardPartialSession={handleDiscardPartialSession}
-              />
-            ) : activePage === 'notes' ? (
-              <NotesBoard
-                notes={notes}
-                onAddNote={onAddNote}
-                onUpdateNote={onUpdateNote}
-                onDeleteNote={onDeleteNote}
-              />
-            ) : activePage === 'analytics' ? (
-              <AnalyticsPage
-                tasks={tasks}
-                habits={habits}
-                habitLogs={habitLogs}
-                pomodoroSessions={pomodoroSessions}
-                activeListId={activeListId}
-              />
-            ) : (
-              <SettingsPage
-                user={user}
-                theme={theme}
-                setTheme={setTheme}
-                styleMode={styleMode}
-                setStyleMode={setStyleMode}
-                isSyncing={isSyncing}
-                lastSynced={lastSynced}
-                syncError={syncError}
-                onSyncTrigger={onSyncTrigger}
-                onReconnectGoogle={onReconnectGoogle}
-                onSignOut={onSignOut}
-                onPomoSettingsChange={onPomoSettingsChange}
-              />
-            )}
+            <Routes>
+              <Route path="/calendar" element={
+                <CalendarView
+                  events={events}
+                  onAddEvent={onAddEvent}
+                  onUpdateEvent={onUpdateEvent}
+                  onDeleteEvent={onDeleteEvent}
+                />
+              } />
+              <Route path="/tasks" element={
+                <TaskBoard
+                  tasks={tasks}
+                  taskLists={taskLists}
+                  activeListId={activeListId}
+                  setActiveListId={setActiveListId}
+                  onAddTask={onAddTask}
+                  onToggleTask={onToggleTask}
+                  onUpdateTask={onUpdateTask}
+                  onDeleteTask={onDeleteTask}
+                  loading={loadingData}
+                />
+              } />
+              <Route path="/" element={
+                <DashboardOverview
+                  user={user}
+                  tasks={tasks}
+                  events={events}
+                  habits={habits}
+                  habitLogs={habitLogs}
+                  pomodoroSessions={pomodoroSessions}
+                  activeListId={activeListId}
+                  onToggleHabit={onToggleHabit}
+                  onNavigate={(page) => navigate(page === 'dashboard' ? '/' : `/${page}`)}
+                  pomoType={pomoType}
+                  pomoState={pomoState}
+                  pomoTotalDuration={pomoTotalDuration}
+                  pomoTimeLeft={pomoTimeLeft}
+                  pomoSelectedTaskIds={pomoSelectedTaskIds}
+                  setPomoSelectedTaskIds={setPomoSelectedTaskIds}
+                  startPausePomo={startPausePomo}
+                  resetPomo={resetPomo}
+                  onAddTask={onAddTask}
+                  onToggleTask={onToggleTask}
+                  onAddEvent={onAddEvent}
+                  notes={notes}
+                  onAddNote={onAddNote}
+                  onUpdateNote={onUpdateNote}
+                  onDeleteNote={onDeleteNote}
+                  activeSoundId={activeSoundId}
+                  toggleAmbientSound={toggleAmbientSound}
+                  skipPomo={skipPomo}
+                  adjustPomoDuration={adjustPomoDuration}
+                  handlePresetSelect={handlePresetSelect}
+                  handleSavePartialSession={handleSavePartialSession}
+                  handleDiscardPartialSession={handleDiscardPartialSession}
+                />
+              } />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
+              <Route path="/habits" element={
+                <HabitsBoard
+                  habits={habits}
+                  habitLogs={habitLogs}
+                  taskLists={taskLists}
+                  onAddHabit={onAddHabit}
+                  onUpdateHabit={onUpdateHabit}
+                  onDeleteHabit={onDeleteHabit}
+                  onToggleHabit={onToggleHabit}
+                />
+              } />
+              <Route path="/pomodoro" element={
+                <PomodoroBoard
+                  tasks={tasks}
+                  activeListId={activeListId}
+                  pomodoroSessions={pomodoroSessions}
+                  userId={user.uid}
+                  onToggleTask={onToggleTask}
+                  pomoType={pomoType}
+                  pomoState={pomoState}
+                  pomoTotalDuration={pomoTotalDuration}
+                  pomoTimeLeft={pomoTimeLeft}
+                  pomoSelectedTaskIds={pomoSelectedTaskIds}
+                  setPomoSelectedTaskIds={setPomoSelectedTaskIds}
+                  activeSoundId={activeSoundId}
+                  startPausePomo={startPausePomo}
+                  resetPomo={resetPomo}
+                  skipPomo={skipPomo}
+                  adjustPomoDuration={adjustPomoDuration}
+                  toggleAmbientSound={toggleAmbientSound}
+                  handlePresetSelect={handlePresetSelect}
+                  handleSavePartialSession={handleSavePartialSession}
+                  handleDiscardPartialSession={handleDiscardPartialSession}
+                />
+              } />
+              <Route path="/notes" element={
+                <NotesBoard
+                  notes={notes}
+                  onAddNote={onAddNote}
+                  onUpdateNote={onUpdateNote}
+                  onDeleteNote={onDeleteNote}
+                />
+              } />
+              <Route path="/analytics" element={
+                <AnalyticsPage
+                  tasks={tasks}
+                  habits={habits}
+                  habitLogs={habitLogs}
+                  pomodoroSessions={pomodoroSessions}
+                  activeListId={activeListId}
+                />
+              } />
+              <Route path="/settings" element={
+                <SettingsPage
+                  user={user}
+                  theme={theme}
+                  setTheme={setTheme}
+                  styleMode={styleMode}
+                  setStyleMode={setStyleMode}
+                  isSyncing={isSyncing}
+                  lastSynced={lastSynced}
+                  syncError={syncError}
+                  onSyncTrigger={onSyncTrigger}
+                  onReconnectGoogle={onReconnectGoogle}
+                  onSignOut={onSignOut}
+                  onPomoSettingsChange={onPomoSettingsChange}
+                />
+              } />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </div>
         </main>
 
