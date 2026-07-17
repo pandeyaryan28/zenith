@@ -112,6 +112,68 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     syncToCalendar: false,
     color: 'grad-indigo',
   });
+  // Selected heatmap day details
+  const [selectedHeatmapDate, setSelectedHeatmapDate] = useState<string | null>(null);
+
+  // Generate 53 weeks (371 days) ending today, starting on Sunday
+  const yearlyGridData = useMemo(() => {
+    const today = new Date();
+    const days: Date[] = [];
+    
+    // Find Sunday of 52 weeks ago (364 days ago)
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - 364);
+    const startDay = startDate.getDay(); // 0 Sun, 1 Mon...
+    startDate.setDate(startDate.getDate() - startDay); // Shift to Sunday of that week
+    
+    // 53 columns * 7 rows = 371 cells
+    for (let i = 0; i < 371; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      days.push(d);
+    }
+    
+    return days;
+  }, []);
+
+  // Compute month labels positioned above column headers
+  const monthLabelsElements = useMemo(() => {
+    const months: string[] = [];
+    let prevMonth = -1;
+    for (let i = 0; i < 53; i++) {
+      const day = yearlyGridData[i * 7];
+      if (day) {
+        const m = day.getMonth();
+        if (m !== prevMonth) {
+          prevMonth = m;
+          months.push(day.toLocaleDateString(undefined, { month: 'short' }));
+        } else {
+          months.push('');
+        }
+      } else {
+        months.push('');
+      }
+    }
+    return months;
+  }, [yearlyGridData]);
+
+  // Completions on the selected heatmap date
+  const selectedDateCompletions = useMemo(() => {
+    if (!selectedHeatmapDate) return [];
+    const completions: { habitTitle: string; note?: string; duration?: number; category: string }[] = [];
+    habits.forEach(h => {
+      const logs = habitLogs[h.id] || {};
+      if (logs[selectedHeatmapDate] && logs[selectedHeatmapDate].status === 'completed') {
+        completions.push({
+          habitTitle: h.title,
+          note: logs[selectedHeatmapDate].note,
+          duration: logs[selectedHeatmapDate].timeSpentMinutes,
+          category: h.category || 'mind'
+        });
+      }
+    });
+    return completions;
+  }, [habits, habitLogs, selectedHeatmapDate]);
 
   // Reset wizard helper
   const resetWizard = () => {
@@ -668,37 +730,65 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               Visualizing overall completion rates across all scheduled habits.
             </span>
           </div>
+          {/* Generates a full Github-style Heatmap of the past year (53 weeks) */}
+          <div className="heatmap-container-wrapper">
+            <div className="weekday-labels">
+              <div className="weekday-label"></div>
+              <div className="weekday-label">Mon</div>
+              <div className="weekday-label"></div>
+              <div className="weekday-label">Wed</div>
+              <div className="weekday-label"></div>
+              <div className="weekday-label">Fri</div>
+              <div className="weekday-label"></div>
+            </div>
 
-          {/* Generates a Github-style Heatmap of last 6 months */}
-          <div className="yearly-heatmap-grid">
-            {Array.from({ length: 140 }).map((_, index) => {
-              const d = new Date();
-              d.setDate(d.getDate() - (139 - index));
-              const dateStr = getLocalDateStr(d);
-              
-              // Count completions on this day
-              let completionsCount = 0;
-              habits.forEach(h => {
-                const logs = habitLogs[h.id] || {};
-                if (logs[dateStr] && logs[dateStr].status === 'completed') {
-                  completionsCount++;
-                }
-              });
+            <div className="heatmap-grid-scrollable">
+              {/* Months Row */}
+              <div className="month-labels">
+                {monthLabelsElements.map((label, idx) => (
+                  <div key={idx} className="month-label">
+                    {label}
+                  </div>
+                ))}
+              </div>
 
-              let levelClass = '';
-              if (completionsCount === 1) levelClass = 'level-1';
-              else if (completionsCount === 2) levelClass = 'level-2';
-              else if (completionsCount === 3) levelClass = 'level-3';
-              else if (completionsCount > 3) levelClass = 'level-4';
+              {/* Heatmap Grid */}
+              <div className="yearly-heatmap-grid">
+                {yearlyGridData.map((day, index) => {
+                  const dateStr = getLocalDateStr(day);
+                  
+                  // Count completions on this day
+                  let completionsCount = 0;
+                  habits.forEach(h => {
+                    const logs = habitLogs[h.id] || {};
+                    if (logs[dateStr] && logs[dateStr].status === 'completed') {
+                      completionsCount++;
+                    }
+                  });
 
-              return (
-                <div 
-                  key={index} 
-                  className={`yearly-cell ${levelClass}`}
-                  title={`${dateStr}: ${completionsCount} habits checked`}
-                />
-              );
-            })}
+                  let levelClass = '';
+                  if (completionsCount === 1) levelClass = 'level-1';
+                  else if (completionsCount === 2) levelClass = 'level-2';
+                  else if (completionsCount === 3) levelClass = 'level-3';
+                  else if (completionsCount > 3) levelClass = 'level-4';
+
+                  const isSelected = selectedHeatmapDate === dateStr;
+
+                  return (
+                    <div 
+                      key={index} 
+                      className={`yearly-cell ${levelClass} ${isSelected ? 'selected' : ''}`}
+                      onClick={() => setSelectedHeatmapDate(dateStr)}
+                      title={`${dateStr}: ${completionsCount} habits checked`}
+                    >
+                      <div className="tooltip">
+                        {day.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}: {completionsCount} done
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           <div className="calendar-legend">
@@ -711,7 +801,37 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
             <span>More</span>
           </div>
 
-          {/* Feed of all recent notes across all habits */}
+          {/* Interactive Date details view */}
+          {selectedHeatmapDate && (
+            <div className="feed-item" style={{ border: '1px solid var(--color-primary-glow)', background: 'rgba(99, 102, 241, 0.04)' }}>
+              <div className="feed-header">
+                <span style={{ fontWeight: 700, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  📅 Activity on {selectedHeatmapDate}
+                </span>
+                <button 
+                  onClick={() => setSelectedHeatmapDate(null)} 
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                >
+                  Close
+                </button>
+              </div>
+              {selectedDateCompletions.length === 0 ? (
+                <p style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: '0.875rem', margin: '0.5rem 0 0 0' }}>
+                  No habits completed on this date.
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  {selectedDateCompletions.map((item, idx) => (
+                    <div key={idx} className={`log-item cat-${item.category}`} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem' }}>
+                      <strong style={{ color: 'var(--text-primary)' }}>{item.habitTitle}</strong>
+                      {item.duration && <span style={{ color: 'var(--color-secondary)', fontSize: '0.75rem', marginLeft: '0.5rem' }}>⏱️ {item.duration}m</span>}
+                      {item.note && <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem', fontStyle: 'italic' }}>"{item.note}"</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="heatmap-notes-feed">
             <h4 className="drawer-section-title" style={{ fontSize: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
               <MessageSquare size={16} /> Recent Notes Feed

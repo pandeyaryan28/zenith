@@ -928,15 +928,62 @@
   margin: 0;
 }
 
+.heatmap-container-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  background: var(--bg-card-nested);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+}
+
+.weekday-labels {
+  display: grid;
+  grid-template-rows: repeat(7, 1fr);
+  gap: 3px;
+  padding-top: 1.5rem; /* space for month labels */
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.weekday-label {
+  display: flex;
+  align-items: center;
+  height: 12px;
+}
+
+.heatmap-grid-scrollable {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex-grow: 1;
+}
+
+.month-labels {
+  display: grid;
+  grid-template-columns: repeat(53, minmax(13px, 1fr));
+  gap: 3px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  height: 1.25rem;
+}
+
+.month-label {
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+}
+
 .yearly-heatmap-grid {
   display: grid;
-  grid-template-flow: column;
+  grid-auto-flow: column;
   grid-template-rows: repeat(7, 1fr);
   grid-auto-columns: minmax(13px, 1fr);
   gap: 3px;
-  overflow-x: auto;
-  padding-bottom: 0.5rem;
-  direction: ltr;
 }
 
 .yearly-cell {
@@ -946,6 +993,21 @@
   border-radius: 2px;
   cursor: pointer;
   min-width: 12px;
+  min-height: 12px;
+  position: relative;
+  transition: all var(--transition-fast);
+}
+
+.yearly-cell:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: scale(1.15);
+  z-index: 5;
+}
+
+.yearly-cell.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 8px var(--color-primary-glow);
+  transform: scale(1.1);
 }
 
 .yearly-cell.level-1 { background: rgba(99, 102, 241, 0.15); }
