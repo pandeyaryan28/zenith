@@ -161,7 +161,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           {/* Theme Selector */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Theme Mode</span>
-            <div style={{ display: 'flex', background: 'rgba(0, 0, 0, 0.25)', padding: '0.35rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', gap: '0.35rem', width: '280px' }}>
+            <div style={{ display: 'flex', background: 'var(--bg-card-nested)', padding: '0.35rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', gap: '0.35rem', width: '280px' }}>
               <button
                 onClick={() => setTheme('light')}
                 style={{
@@ -226,7 +226,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
                     style={{
                       padding: '1rem',
                       borderRadius: 'var(--radius-sm)',
-                      background: isActive ? 'var(--color-primary-glow)' : 'rgba(0, 0, 0, 0.15)',
+                      background: isActive ? 'var(--color-primary-glow)' : 'var(--bg-card-nested)',
                       border: isActive ? '1px solid var(--border-active)' : '1px solid var(--border-color)',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                       cursor: 'pointer',
@@ -402,7 +402,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             
             {/* Status card */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0, 0, 0, 0.1)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card-nested)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Synchronization Status</span>

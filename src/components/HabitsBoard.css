@@ -291,7 +291,7 @@
 .category-tabs {
   display: flex;
   gap: 0.35rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   padding: 0.25rem;
   border-radius: var(--radius-sm);
@@ -346,7 +346,7 @@
 .search-box {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.45rem 0.75rem;
@@ -396,7 +396,7 @@
 }
 
 .sort-dropdown {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
@@ -448,11 +448,16 @@
 
 .hb-card-item.is-completed {
   border-color: rgba(16, 185, 129, 0.35);
-  background: rgba(13, 16, 26, 0.45);
+  background: var(--bg-card-nested);
 }
 
 .hb-card-item.is-completed:hover {
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.15);
+  box-shadow: var(--shadow-md), 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+html[data-theme="light"] .hb-card-item.is-completed {
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(16, 185, 129, 0.45);
 }
 
 .card-aura-glow {
@@ -830,7 +835,7 @@
 .form-item input[type="text"],
 .form-item select,
 .form-item textarea {
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -889,7 +894,7 @@
 /* Segment Switch Everyday vs Custom */
 .toggle-segment-group {
   display: flex;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.2rem;
@@ -926,7 +931,7 @@
 .day-selector-btn {
   height: 32px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   font-size: 0.76rem;
@@ -1091,7 +1096,7 @@
   position: absolute;
   top: 1rem;
   right: 1rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-card-nested);
   border: none;
   width: 28px;
   height: 28px;
@@ -1105,7 +1110,7 @@
 }
 
 .btn-details-close:hover {
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--bg-surface-hover);
 }
 
 .header-meta-row {
@@ -1115,7 +1120,7 @@
 }
 
 .cat-icon-badge {
-  background: rgba(0, 0, 0, 0.18);
+  background: var(--bg-card-nested);
   border: 1px solid rgba(255, 255, 255, 0.15);
   width: 32px;
   height: 32px;
@@ -1282,7 +1287,7 @@
   align-items: center;
   text-align: center;
   padding: 2.25rem 1rem;
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--bg-card-nested);
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
@@ -1500,7 +1505,7 @@
 }
 
 .mood-picker-btn {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-card-nested);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.5rem 0.25rem;

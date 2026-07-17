@@ -45,7 +45,7 @@ const CATEGORIES: Record<string, { icon: React.ReactNode; label: string; color: 
   mind:    { icon: <Brain size={15} />,    label: 'Mind & Meditation', color: '#a855f7' },
   health:  { icon: <Heart size={15} />,    label: 'Health & Fitness', color: '#10b981' },
   work:    { icon: <Briefcase size={15} />,  label: 'Work & Learning', color: '#f59e0b' },
-  other:   { icon: <Sparkles size={15} />,  label: 'Other Habits', color: '#ec4899' },
+  other:   { icon: <Sparkles size={15} />,  label: 'Other', color: '#ec4899' },
 };
 
 const DIFFICULTY_META = {
@@ -55,15 +55,22 @@ const DIFFICULTY_META = {
 };
 
 const DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAYS_HEADER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 // ── MOODS METADATA ──────────────────────────────────────────
-const MOOD_META: Record<string, { emoji: string; label: string; color: string; xpBonus?: string }> = {
+const MOOD_META: Record<string, { emoji: string; label: string; color: string }> = {
   awesome:    { emoji: '🌟', label: 'Awesome', color: '#10b981' },
   good:       { emoji: '😊', label: 'Good', color: '#06b6d4' },
   neutral:    { emoji: '😐', label: 'Neutral', color: '#64748b' },
   tired:      { emoji: '🥱', label: 'Tired', color: '#f59e0b' },
   struggling: { emoji: '🥺', label: 'Struggling', color: '#ef4444' },
 };
+
+interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
 
 interface HabitsBoardProps {
   habits: Habit[];
@@ -81,6 +88,33 @@ const getLocalDateStr = (d: Date) => {
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+};
+
+// Parse Description text and checklist items out of a composite description field:
+// Format: "motivation text ||todo:task1|done:task2"
+const parseDescriptionAndChecklist = (descStr?: string): { descriptionText: string; checklist: SubTask[] } => {
+  if (!descStr) return { descriptionText: '', checklist: [] };
+  
+  const parts = descStr.split('||');
+  const descriptionText = parts[0].trim();
+  const checklistPart = parts[1];
+  
+  if (!checklistPart) return { descriptionText, checklist: [] };
+  
+  const checklist: SubTask[] = [];
+  const items = checklistPart.split('|');
+  items.forEach((item, index) => {
+    const match = item.match(/^(todo|done):(.*)$/);
+    if (match) {
+      checklist.push({
+        id: `task-${index}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        title: match[2].trim(),
+        completed: match[1] === 'done'
+      });
+    }
+  });
+  
+  return { descriptionText, checklist };
 };
 
 // SVG Progress Ring Component
@@ -128,8 +162,8 @@ const ProgressRing: React.FC<{
 };
 
 export const HabitsBoard: React.FC<HabitsBoardProps> = ({
-  habits,
-  habitLogs,
+  habits = [],
+  habitLogs = {},
   onAddHabit,
   onUpdateHabit,
   onDeleteHabit,
@@ -221,6 +255,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   // Form Field States (Add / Edit Habit)
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
+  const [formChecklistText, setFormChecklistText] = useState('');
   const [formCategory, setFormCategory] = useState('routine');
   const [formDifficulty, setFormDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
   const [formColor, setFormColor] = useState(COLOR_PRESETS[0]);
@@ -275,14 +310,14 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   // Calculations for Today's Stats
   const activeHabitsToday = habits.filter(h => isHabitScheduledForDate(h, new Date()));
   const completedHabitsToday = activeHabitsToday.filter(h => 
-    habitLogs[h.id]?.[getLocalDateStr(new Date())]?.status === 'completed'
+    habitLogs?.[h.id]?.[getLocalDateStr(new Date())]?.status === 'completed'
   );
   const completionPercentToday = activeHabitsToday.length > 0
     ? Math.round((completedHabitsToday.length / activeHabitsToday.length) * 100)
     : 0;
 
   const totalStreakDays = habits.reduce((sum, h) => {
-    const s = calculateStreak(habitLogs[h.id] || {}, h.frequency, h.daysOfWeek);
+    const s = calculateStreak(habitLogs?.[h.id] || {}, h.frequency, h.daysOfWeek);
     return sum + s.currentStreak;
   }, 0);
 
@@ -304,8 +339,8 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     if (sortBy === 'name') {
       return a.title.localeCompare(b.title);
     } else if (sortBy === 'streak') {
-      const streakA = calculateStreak(habitLogs[a.id] || {}, a.frequency, a.daysOfWeek).currentStreak;
-      const streakB = calculateStreak(habitLogs[b.id] || {}, b.frequency, b.daysOfWeek).currentStreak;
+      const streakA = calculateStreak(habitLogs?.[a.id] || {}, a.frequency, a.daysOfWeek).currentStreak;
+      const streakB = calculateStreak(habitLogs?.[b.id] || {}, b.frequency, b.daysOfWeek).currentStreak;
       return streakB - streakA; // Descending
     } else if (sortBy === 'difficulty') {
       const diffWeight = { easy: 1, medium: 2, hard: 3 };
@@ -322,7 +357,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     const scheduled = habits.filter(h => isHabitScheduledForDate(h, date));
     if (scheduled.length === 0) return { scheduledCount: 0, completedCount: 0, percent: -1 };
     
-    const completed = scheduled.filter(h => habitLogs[h.id]?.[dStr]?.status === 'completed');
+    const completed = scheduled.filter(h => habitLogs?.[h.id]?.[dStr]?.status === 'completed');
     return {
       scheduledCount: scheduled.length,
       completedCount: completed.length,
@@ -334,9 +369,16 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
   const getLast30Days = () => {
     const dates: Date[] = [];
     const today = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
+    // Generate exactly 35 days (5 full weeks) to fit a nice grid alignable by Mon-Sun
+    // Start from the Monday of 5 weeks ago
+    const startDay = today.getDay();
+    const distanceToMonday = startDay === 0 ? -6 : 1 - startDay;
+    const firstMonday = new Date(today);
+    firstMonday.setDate(today.getDate() + distanceToMonday - 28); // 4 weeks back from this week's Monday
+    
+    for (let i = 0; i < 35; i++) {
+      const d = new Date(firstMonday);
+      d.setDate(firstMonday.getDate() + i);
       dates.push(d);
     }
     return dates;
@@ -347,7 +389,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     const scheduled = habits.filter(h => isHabitScheduledForDate(h, date));
 
     if (scheduled.length === 0) return { ratio: -1, completed: 0, total: 0 };
-    const completed = scheduled.filter(h => habitLogs[h.id]?.[dateStr]?.status === 'completed').length;
+    const completed = scheduled.filter(h => habitLogs?.[h.id]?.[dateStr]?.status === 'completed').length;
     return { ratio: completed / scheduled.length, completed, total: scheduled.length };
   };
 
@@ -368,6 +410,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     setEditingHabit(null);
     setFormTitle('');
     setFormDesc('');
+    setFormChecklistText('');
     setFormCategory('routine');
     setFormDifficulty('medium');
     setFormColor(COLOR_PRESETS[0]);
@@ -380,8 +423,11 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
 
   const openEditDrawer = (habit: Habit) => {
     setEditingHabit(habit);
+    const parsed = parseDescriptionAndChecklist(habit.description);
+    
     setFormTitle(habit.title);
-    setFormDesc(habit.description || '');
+    setFormDesc(parsed.descriptionText);
+    setFormChecklistText(parsed.checklist.map(t => t.title).join(', '));
     setFormCategory(habit.category || 'routine');
     setFormDifficulty(habit.difficulty || 'medium');
     const colorMatch = COLOR_PRESETS.find(p => p.class === habit.color) || COLOR_PRESETS[0];
@@ -397,9 +443,19 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     e.preventDefault();
     if (!formTitle.trim()) return;
 
+    // Serialize checklist sub-tasks into composite description string
+    const listItems = formChecklistText
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => `todo:${s}`)
+      .join('|');
+      
+    const finalDescription = formDesc.trim() + (listItems ? ` ||${listItems}` : '');
+
     const dataPayload = {
       title: formTitle.trim(),
-      description: formDesc.trim() || undefined,
+      description: finalDescription || undefined,
       color: formColor.class,
       category: formCategory,
       difficulty: formDifficulty,
@@ -422,6 +478,25 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
     setEditingHabit(null);
   };
 
+  // Check/uncheck a sub-task inside a habit card
+  const handleToggleSubTask = async (habit: Habit, taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const parsed = parseDescriptionAndChecklist(habit.description);
+    const updatedChecklist = parsed.checklist.map(t => {
+      if (t.id === taskId) {
+        return { ...t, completed: !t.completed };
+      }
+      return t;
+    });
+
+    const listStr = updatedChecklist
+      .map(t => `${t.completed ? 'done' : 'todo'}:${t.title}`)
+      .join('|');
+      
+    const finalDesc = parsed.descriptionText + (listStr ? ` ||${listStr}` : '');
+    await onUpdateHabit(habit.id, { description: finalDesc });
+  };
+
   // Day Toggle for custom week repeat choices
   const handleFormDayToggle = (dayIndex: number) => {
     if (formDaysOfWeek.includes(dayIndex)) {
@@ -433,7 +508,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
 
   // Complete/Uncomplete Trigger
   const handleCheckboxClick = async (habit: Habit) => {
-    const isCompleted = habitLogs[habit.id]?.[selectedDateStr]?.status === 'completed';
+    const isCompleted = habitLogs?.[habit.id]?.[selectedDateStr]?.status === 'completed';
     if (isCompleted) {
       // Toggle off directly
       await onToggleHabit(habit, selectedDateStr, true);
@@ -501,9 +576,9 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               <span className="percent-text">{completionPercentToday}%</span>
             </div>
             <div className="metric-info">
-              <div className="metric-lbl">TODAY'S COMPLETIONS</div>
+              <div className="metric-lbl">TODAY'S SCORE</div>
               <div className="metric-val">{completedHabitsToday.length} / {activeHabitsToday.length}</div>
-              <div className="metric-desc">scheduled habits done today</div>
+              <div className="metric-desc">completions today</div>
             </div>
           </div>
 
@@ -515,7 +590,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
             <div className="metric-info">
               <div className="metric-lbl">COMBINED STREAK</div>
               <div className="metric-val text-streak">{totalStreakDays}d</div>
-              <div className="metric-desc">accumulated consecutive days</div>
+              <div className="metric-desc">accumulated streak</div>
             </div>
           </div>
 
@@ -525,9 +600,11 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
               <Target size={18} style={{ color: '#10b981' }} />
             </div>
             <div className="metric-info">
-              <div className="metric-lbl">MONITORED TRACKS</div>
-              <div className="metric-val text-success">{habits.filter(h => !h.archived).length}</div>
-              <div className="metric-desc">active habits cataloged</div>
+              <div className="metric-lbl">ACTIVE TRACKS</div>
+              <div className="metric-val text-success">
+                {habits.filter(h => isHabitScheduledForDate(h, new Date())).length} / {habits.filter(h => !h.archived).length}
+              </div>
+              <div className="metric-desc">scheduled / total habits</div>
             </div>
           </div>
 
@@ -542,8 +619,8 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
       <div className="hb-overall-heatmap-card">
         <div className="heatmap-header">
           <div className="header-lbl-group">
-            <span className="lbl-title">30-Day Consistency Grid</span>
-            <span className="lbl-desc">Aggregated completion rate of all scheduled tracks</span>
+            <span className="lbl-title">Consistency Calendar</span>
+            <span className="lbl-desc">Aggregated completion rate over the last 5 weeks</span>
           </div>
           <div className="heatmap-legend">
             <span className="legend-item"><span className="dot" style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255,255,255,0.04)' }} /> None</span>
@@ -553,25 +630,35 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
           </div>
         </div>
 
-        <div className="heatmap-row-nodes">
-          {getLast30Days().map((date, idx) => {
-            const { ratio, completed, total } = getHeatmapData(date);
-            const formattedDate = date.toLocaleDateString(undefined, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric'
-            });
-            return (
-              <div
-                key={idx}
-                className="overall-heatmap-cell"
-                style={getHeatmapStyle(ratio)}
-                title={ratio < 0
-                  ? `${formattedDate} — No habits scheduled`
-                  : `${formattedDate} — Completed ${completed}/${total} habits (${Math.round(ratio * 100)}%)`}
-              />
-            );
-          })}
+        {/* Heatmap Grid Calendar with Column headers */}
+        <div className="heatmap-calendar-grid-wrap">
+          <div className="heatmap-days-header" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.45rem', marginBottom: '0.35rem', textAlign: 'center' }}>
+            {DAYS_HEADER.map(day => (
+              <span key={day} style={{ fontSize: '0.62rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                {day}
+              </span>
+            ))}
+          </div>
+          <div className="heatmap-row-nodes" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.45rem' }}>
+            {getLast30Days().map((date, idx) => {
+              const { ratio, completed, total } = getHeatmapData(date);
+              const formattedDate = date.toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              });
+              return (
+                <div
+                  key={idx}
+                  className="overall-heatmap-cell"
+                  style={getHeatmapStyle(ratio)}
+                  title={ratio < 0
+                    ? `${formattedDate} — No habits scheduled`
+                    : `${formattedDate} — Completed ${completed}/${total} habits (${Math.round(ratio * 100)}%)`}
+                />
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -579,7 +666,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
       <div className="hb-week-navigation">
         <div className="week-label">
           <CalendarRangeIcon className="lbl-icon" />
-          <span>Week Calendar Navigation</span>
+          <span>Weekly Activity</span>
         </div>
         <div className="week-days-row">
           {weekDays.map((day, idx) => {
@@ -698,14 +785,22 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
         ) : (
           <div className="hb-habits-grid">
             {displayedHabits.map(habit => {
-              const logs = habitLogs[habit.id] || {};
+              const logs = habitLogs?.[habit.id] || {};
               const isCompleted = logs[selectedDateStr]?.status === 'completed';
               const streakInfo = calculateStreak(logs, habit.frequency, habit.daysOfWeek);
               const isTimerRunning = activeTimer?.habitId === habit.id;
               
+              const parsed = parseDescriptionAndChecklist(habit.description);
               const categoryMeta = CATEGORIES[habit.category || 'routine'] || CATEGORIES.other;
-              const difficultyMeta = DIFFICULTY_META[habit.difficulty || 'medium'];
+              const difficultyMeta = DIFFICULTY_META[habit.difficulty as keyof typeof DIFFICULTY_META] || DIFFICULTY_META.medium;
               const presetColor = COLOR_PRESETS.find(p => p.class === habit.color) || COLOR_PRESETS[0];
+
+              // Calculate overall checklist status progress
+              const totalTasksCount = parsed.checklist.length;
+              const completedTasksCount = parsed.checklist.filter(t => t.completed).length;
+              const listPercent = totalTasksCount > 0 
+                ? Math.round((completedTasksCount / totalTasksCount) * 100)
+                : 0;
 
               return (
                 <div
@@ -745,9 +840,76 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                         </span>
                         <h4>{habit.title}</h4>
                       </div>
-                      {habit.description && <p className="card-desc">{habit.description}</p>}
+                      {parsed.descriptionText && <p className="card-desc">{parsed.descriptionText}</p>}
+                    </div>
+
+                    {/* SVG progress ring on card top right */}
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+                      <ProgressRing
+                        radius={22}
+                        stroke={2.5}
+                        progress={totalTasksCount > 0 ? listPercent : (isCompleted ? 100 : 0)}
+                        color1={presetColor.solid}
+                        color2={categoryMeta.color}
+                        gradientId={`card-ring-${habit.id}`}
+                      />
                     </div>
                   </div>
+
+                  {/* Checklist Section inside Card */}
+                  {parsed.checklist.length > 0 && (
+                    <div className="card-checklist" onClick={(e) => e.stopPropagation()} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', paddingLeft: '2rem', marginTop: '-0.25rem' }}>
+                      {parsed.checklist.map(task => (
+                        <label
+                          key={task.id}
+                          className="checklist-item-lbl"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.45rem',
+                            fontSize: '0.74rem',
+                            color: task.completed ? 'var(--text-muted)' : 'var(--text-secondary)',
+                            textDecoration: task.completed ? 'line-through' : 'none',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={task.completed}
+                            onChange={(e) => handleToggleSubTask(habit, task.id, e as any)}
+                            style={{
+                              width: '13px',
+                              height: '13px',
+                              accentColor: presetColor.solid,
+                              cursor: 'pointer'
+                            }}
+                          />
+                          <span>{task.title}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Inline Countdown focus timer in Card body */}
+                  {isTimerRunning && (
+                    <div className="card-timer-panel" onClick={(e) => e.stopPropagation()} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.45rem 0.65rem', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginTop: '-0.35rem', marginLeft: '2rem' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                        Focus session timer:
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, fontFamily: 'var(--font-display)', color: presetColor.solid }}>
+                          {String(Math.floor((activeTimer?.secondsRemaining || 0) / 60)).padStart(2, '0')}:
+                          {String((activeTimer?.secondsRemaining || 0) % 60).padStart(2, '0')}
+                        </span>
+                        <button
+                          onClick={() => setActiveTimer(prev => prev ? { ...prev, isPlaying: !prev.isPlaying } : null)}
+                          style={{ background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-primary)' }}
+                        >
+                          {activeTimer?.isPlaying ? <Pause size={10} fill="#ffffff" /> : <Play size={10} fill="#ffffff" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="card-bottom" onClick={(e) => e.stopPropagation()}>
                     <div className="badges-group">
@@ -811,6 +973,40 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
         )}
       </div>
 
+      {/* Floating Orange Add Button in bottom right corner */}
+      <button
+        onClick={openAddDrawer}
+        style={{
+          position: 'fixed',
+          bottom: '2rem',
+          right: '2rem',
+          background: 'var(--color-warning)',
+          color: '#ffffff',
+          width: '52px',
+          height: '52px',
+          borderRadius: '50%',
+          border: 'none',
+          boxShadow: '0 4px 15px rgba(245, 158, 11, 0.45)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 900,
+          transition: 'all 0.2s ease-out'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'scale(1.08) rotate(90deg)';
+          e.currentTarget.style.boxShadow = '0 6px 20px rgba(245, 158, 11, 0.55)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
+          e.currentTarget.style.boxShadow = '0 4px 15px rgba(245, 158, 11, 0.45)';
+        }}
+        title="Add new habit"
+      >
+        <Plus size={24} strokeWidth={3} />
+      </button>
+
       {/* ── SLIDE-OVER DRAWER: CREATE / EDIT HABIT ────────── */}
       <div className={`drawer-overlay ${isAddEditOpen ? 'is-active' : ''}`} onClick={() => setIsAddEditOpen(false)}>
         <form
@@ -852,6 +1048,20 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                 onChange={e => setFormDesc(e.target.value)}
                 maxLength={90}
               />
+            </div>
+
+            {/* Checklist items list */}
+            <div className="form-item">
+              <label>Sub-tasks Checklist (Comma-separated)</label>
+              <input
+                type="text"
+                placeholder="e.g. Cardio, Strength, Stretching"
+                value={formChecklistText}
+                onChange={e => setFormChecklistText(e.target.value)}
+              />
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                Adds specific sub-tasks to check off inside the card.
+              </span>
             </div>
 
             {/* Category & Difficulty */}
@@ -980,11 +1190,12 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
       {/* ── SLIDE-OVER DRAWER: HABIT DETAILS & HISTORY ────── */}
       <div className={`drawer-overlay ${isDetailsOpen ? 'is-active' : ''}`} onClick={() => setIsDetailsOpen(false)}>
         {inspectingHabit && (() => {
-          const logs = habitLogs[inspectingHabit.id] || {};
+          const logs = habitLogs?.[inspectingHabit.id] || {};
           const streakData = calculateStreak(logs, inspectingHabit.frequency, inspectingHabit.daysOfWeek);
-          const difficultyMeta = DIFFICULTY_META[inspectingHabit.difficulty || 'medium'];
+          const difficultyMeta = DIFFICULTY_META[inspectingHabit.difficulty as keyof typeof DIFFICULTY_META] || DIFFICULTY_META.medium;
           const categoryMeta = CATEGORIES[inspectingHabit.category || 'routine'] || CATEGORIES.other;
           const presetColor = COLOR_PRESETS.find(p => p.class === inspectingHabit.color) || COLOR_PRESETS[0];
+          const parsed = parseDescriptionAndChecklist(inspectingHabit.description);
 
           // Heatmap calculations
           const heatmapNodes = [];
@@ -1038,7 +1249,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                       className="lbl-badge-diff"
                       style={{
                         color: difficultyMeta.color,
-                        background: 'rgba(0, 0, 0, 0.22)',
+                        background: 'var(--bg-card-nested)',
                         border: '1px solid rgba(255, 255, 255, 0.15)'
                       }}
                     >
@@ -1048,7 +1259,7 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                 </div>
 
                 <h2>{inspectingHabit.title}</h2>
-                {inspectingHabit.description && <p className="details-desc">{inspectingHabit.description}</p>}
+                {parsed.descriptionText && <p className="details-desc">{parsed.descriptionText}</p>}
                 
                 <div className="details-sub-meta">
                   <span className="meta-text-item">
@@ -1143,8 +1354,8 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                     <div className="details-logs-stack">
                       {completedEntries.map(dateKey => {
                         const logObj = logs[dateKey];
-                        const parsed = parseLogNote(logObj.note);
-                        const moodObj = parsed.mood ? MOOD_META[parsed.mood] : null;
+                        const parsedLog = parseLogNote(logObj.note);
+                        const moodObj = parsedLog.mood ? MOOD_META[parsedLog.mood] : null;
 
                         return (
                           <div key={dateKey} className="log-history-card">
@@ -1163,8 +1374,8 @@ export const HabitsBoard: React.FC<HabitsBoardProps> = ({
                                 )}
                               </div>
                             </div>
-                            {parsed.text ? (
-                              <p className="log-reflection-txt">"{parsed.text}"</p>
+                            {parsedLog.text ? (
+                              <p className="log-reflection-txt">"{parsedLog.text}"</p>
                             ) : (
                               <p className="log-reflection-txt empty">Checked off without notes.</p>
                             )}

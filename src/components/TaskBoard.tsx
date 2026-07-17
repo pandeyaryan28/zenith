@@ -1679,7 +1679,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
                       height: '30px', 
                       fontSize: '0.75rem', 
                       padding: '0.35rem 0.65rem', 
-                      background: 'rgba(0, 0, 0, 0.2)',
+                      background: 'var(--bg-card-nested)',
                       border: '1px solid var(--border-color)',
                       borderRadius: 'var(--radius-sm)',
                       color: 'var(--text-primary)',

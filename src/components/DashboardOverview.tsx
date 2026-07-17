@@ -624,7 +624,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             {/* Quick Actions & Modifiers */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, width: '100%', minWidth: 0 }}>
               {/* Preset selectors */}
-              <div style={{ display: 'flex', gap: '0.35rem', background: 'rgba(0,0,0,0.15)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--bg-card-nested)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 {(['work', 'shortBreak', 'longBreak'] as const).map(type => (
                   <button
                     key={type}
@@ -648,7 +648,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               {/* Adjust duration (only when idle) */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                 <span>Length Target:</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(0,0,0,0.1)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-card-nested)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
                   <button onClick={() => adjustPomoDuration(-60)} style={{ color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }} disabled={pomoState !== 'idle'}><Minus size={11} /></button>
                   <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{Math.round(pomoTotalDuration / 60)} min</span>
                   <button onClick={() => adjustPomoDuration(60)} style={{ color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }} disabled={pomoState !== 'idle'}><Plus size={11} /></button>
@@ -735,7 +735,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
             display: 'flex', 
             flexDirection: 'column', 
             gap: '0.5rem', 
-            background: 'rgba(0,0,0,0.15)', 
+            background: 'var(--bg-card-nested)', 
             padding: '0.75rem 0.85rem', 
             borderRadius: 'var(--radius-sm)', 
             border: '1px solid var(--border-color)' 
@@ -960,7 +960,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               style={{
                 fontSize: '0.75rem',
                 padding: '0.5rem 0.75rem',
-                background: 'rgba(0,0,0,0.2)',
+                background: 'var(--bg-card-nested)',
                 borderRadius: 'var(--radius-sm)',
                 flex: 1
               }}
@@ -1303,7 +1303,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
               resize: 'none',
               fontSize: '0.75rem',
               padding: '0.65rem',
-              background: 'rgba(0,0,0,0.2)',
+              background: 'var(--bg-card-nested)',
               borderRadius: 'var(--radius-sm)',
               color: 'var(--text-primary)',
               border: '1px solid var(--border-color)',
@@ -1505,7 +1505,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
                 value={taskSearchQuery} 
                 onChange={(e) => setTaskSearchQuery(e.target.value)}
                 className="global-search-input"
-                style={{ fontSize: '0.8rem', padding: '0.45rem 0.5rem 0.45rem 2.2rem', borderRadius: 'var(--radius-sm)', width: '100%', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
+                style={{ fontSize: '0.8rem', padding: '0.45rem 0.5rem 0.45rem 2.2rem', borderRadius: 'var(--radius-sm)', width: '100%', background: 'var(--bg-card-nested)', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
               />
               {taskSearchQuery && (
                 <button className="global-search-clear-btn" style={{ right: '0.625rem', position: 'absolute', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }} onClick={() => setTaskSearchQuery('')}>

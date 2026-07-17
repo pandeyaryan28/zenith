@@ -241,13 +241,13 @@ export const PomodoroBoard: React.FC<PomodoroBoardProps> = ({
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            background: 'rgba(0, 0, 0, 0.25)',
-            border: '1px solid rgba(255, 255, 255, 0.05)',
+            background: 'var(--bg-card-nested)',
+            border: '1px solid var(--border-color)',
             boxShadow: timerState === 'running' ? '0 0 35px ' + getTimerThemeColor() + '18' : 'none',
             transition: 'box-shadow var(--transition-normal)'
           }}>
             <svg width="230" height="230" viewBox="0 0 200 200" style={{ position: 'absolute' }}>
-              <circle cx="100" cy="100" r="88" fill="none" stroke="rgba(255,255,255,0.02)" strokeWidth="5" />
+              <circle cx="100" cy="100" r="88" fill="none" stroke="var(--border-color)" strokeWidth="5" />
               <circle 
                 cx="100" 
                 cy="100" 
